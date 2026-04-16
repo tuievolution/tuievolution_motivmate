@@ -71,29 +71,35 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 12),
-            ListTile(
+            ExpansionTile(
               leading: const Icon(Icons.language),
-              title: const Text('Uygulama Dili'),
+              title: const Text('Kart Dili'),
               subtitle: const Text('Alıntı ve arayüz dili seçimi'),
-              trailing: DropdownButton<String>(
-                value: draft.appLanguage,
-                items: const [
-                  DropdownMenuItem(value: 'tr', child: Text('Türkçe')),
-                  DropdownMenuItem(value: 'en', child: Text('English')),
-                ],
-                onChanged: (value) async {
-                  if (value == null) return;
-                  setState(() => draft = draft.copyWith(appLanguage: value));
-                  await _commit(rescheduleNotifications: true);
-                  await _app.refreshQuote();
-                },
-              ),
+              initiallyExpanded: false,
+              children: [
+                ListTile(
+                  title: const Text('Seçili Dil'),
+                  trailing: DropdownButton<String>(
+                    value: draft.appLanguage,
+                    items: const [
+                      DropdownMenuItem(value: 'tr', child: Text('Türkçe')),
+                      DropdownMenuItem(value: 'en', child: Text('English')),
+                    ],
+                    onChanged: (value) async {
+                      if (value == null) return;
+                      setState(() => draft = draft.copyWith(appLanguage: value));
+                      await _commit(rescheduleNotifications: true);
+                      await _app.refreshQuote();
+                    },
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 4),
             ExpansionTile(
               leading: const Icon(Icons.palette_outlined),
               title: const Text('Tema Ayarları'),
-              initiallyExpanded: true,
+              initiallyExpanded: false,
               children: [
                 const SizedBox(height: 8),
                 ...themePresets.map((p) {

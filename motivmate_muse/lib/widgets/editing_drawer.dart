@@ -246,7 +246,10 @@ class _EditingDrawerState extends State<EditingDrawer> {
           onPressed: () async {
             final updated = await Navigator.of(context).push<AppSettings>(
               MaterialPageRoute(
-                builder: (_) => CardResizerPopup(settings: draft),
+                builder: (_) => CardResizerPopup(
+                  settings: draft,
+                  appState: widget.appState,
+                ),
                 fullscreenDialog: true,
               ),
             );

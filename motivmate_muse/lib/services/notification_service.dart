@@ -24,10 +24,12 @@ class NotificationService {
       try {
         tz.setLocalLocation(tz.getLocation(localTz.identifier));
       } catch (_) {
-        tz.setLocalLocation(tz.getLocation('Etc/UTC'));
+        // Cihaz zaman dilimi tanınmadıysa Türkiye'yi varsayılan yap (UTC+3)
+        tz.setLocalLocation(tz.getLocation('Europe/Istanbul'));
       }
     } catch (_) {
-      tz.setLocalLocation(tz.getLocation('Etc/UTC'));
+      // Platform desteklemiyorsa Türkiye'yi varsayılan yap (UTC+3)
+      tz.setLocalLocation(tz.getLocation('Europe/Istanbul'));
     }
     _tzConfigured = true;
   }
@@ -65,12 +67,12 @@ class NotificationService {
     return const NotificationDetails(android: androidDetails, iOS: iosDetails);
   }
 
-  Future<void> showBarNotification(Quote quote) async {
+  Future<void> showBarNotification(Quote quote, String language) async {
     const id = 999999;
     await _plugin.show(
       id: id,
       title: 'MotivMate',
-      body: '"${quote.text}"',
+      body: '"${quote.text(language)}"',
       notificationDetails: _notificationDetails(),
     );
   }
@@ -100,7 +102,7 @@ class NotificationService {
           await _plugin.zonedSchedule(
             id: i + 1000,
             title: 'MotivMate',
-            body: '"${quote.text}"',
+            body: '"${quote.text(settings.appLanguage)}"',
             scheduledDate: when,
             notificationDetails: details,
             androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -109,7 +111,7 @@ class NotificationService {
           await _plugin.zonedSchedule(
             id: i + 1000,
             title: 'MotivMate',
-            body: '"${quote.text}"',
+            body: '"${quote.text(settings.appLanguage)}"',
             scheduledDate: when,
             notificationDetails: details,
             androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -144,7 +146,7 @@ class NotificationService {
           await _plugin.zonedSchedule(
             id: day + 2000,
             title: 'MotivMate',
-            body: '"${quote.text}"',
+            body: '"${quote.text(settings.appLanguage)}"',
             scheduledDate: date,
             notificationDetails: details,
             androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -153,7 +155,7 @@ class NotificationService {
           await _plugin.zonedSchedule(
             id: day + 2000,
             title: 'MotivMate',
-            body: '"${quote.text}"',
+            body: '"${quote.text(settings.appLanguage)}"',
             scheduledDate: date,
             notificationDetails: details,
             androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,

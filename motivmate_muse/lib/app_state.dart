@@ -174,8 +174,8 @@ class AppState extends ChangeNotifier {
                     QuoteCard(
                       width: 330,
                       height: 260,
-                      text: quote.text,
-                      author: quote.author,
+                      text: quote.text(settings.appLanguage),
+                      author: quote.author(settings.appLanguage),
                       cardBackgroundColor: preset.cardBackgroundColor,
                       quoteTextColor: Color(settings.textColorValue),
                       opacity: settings.cardOpacity,

@@ -2,7 +2,7 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:gal/gal.dart';
 import 'package:provider/provider.dart';
 import 'package:screenshot/screenshot.dart';
 
@@ -136,26 +136,51 @@ class HomeScreen extends StatelessWidget {
                 Future<void> saveCurrentView() async {
                   final bytes = await screenshotController.capture(pixelRatio: 2.0);
                   if (bytes == null) return;
-                  await ImageGallerySaver.saveImage(
-                    bytes,
-                    quality: 100,
-                    name: 'motivmate_${DateTime.now().millisecondsSinceEpoch}',
-                  );
-                  if (!scaffoldContext.mounted) return;
-                  ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                    const SnackBar(content: Text('Gorsel galeriye kaydedildi.')),
-                  );
+                  try {
+                    final hasAccess = await Gal.requestAccess(toAlbum: true);
+                    if (hasAccess) {
+                      await Gal.putImageBytes(bytes, album: 'MotivMood');
+                      if (!scaffoldContext.mounted) return;
+                      ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                        const SnackBar(content: Text('Görsel galeriye kaydedildi.')),
+                      );
+                    } else {
+                      if (!scaffoldContext.mounted) return;
+                      ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                        const SnackBar(content: Text('Galeri erişimi reddedildi.')),
+                      );
+                    }
+                  } catch (e) {
+                    if (!scaffoldContext.mounted) return;
+                    ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                      SnackBar(content: Text('Kaydedilirken hata oluştu: $e')),
+                    );
+                  }
                 }
 
                 return Stack(
                   children: [
                     Positioned.fill(child: blurredBackground),
                     Positioned(
-                      top: 8,
+                      top: 16,
                       left: 0,
-                      child: IconButton(
-                        onPressed: () => Scaffold.of(scaffoldContext).openDrawer(),
-                        icon: const Icon(Icons.menu),
+                      right: 0,
+                      child: Text(
+                        'MotivMood',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
+                          shadows: const [
+                            Shadow(
+                              color: Colors.black45,
+                              blurRadius: 10,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     if (showCard)
@@ -165,8 +190,8 @@ class HomeScreen extends StatelessWidget {
                         child: QuoteCard(
                           width: cardWidth,
                           height: cardHeight,
-                          text: appState.quote.text,
-                          author: appState.quote.author,
+                          text: appState.quote.text(appState.settings.appLanguage),
+                          author: appState.quote.author(appState.settings.appLanguage),
                           cardBackgroundColor: preset.cardBackgroundColor,
                           quoteTextColor:
                               Color(appState.settings.textColorValue),
