@@ -1,68 +1,110 @@
-import 'dart:convert';
 import 'dart:math';
 
-import 'package:csv/csv.dart';
 import 'package:flutter/services.dart';
 
 import '../models/quote.dart';
 
 class QuoteService {
-  final Map<String, List<Quote>> _cacheByLanguage = {};
+  static const int _imageCount = 419; // max image number in assets/images/
+  // Known existing image numbers (some are missing e.g. 55, 135, 195...)
+  // Build the list dynamically from AssetManifest or use the range
   final _rng = Random();
   List<String> _imagePaths = [];
+
+  // Cached quote list per language
+  final Map<String, List<Quote>> _cacheByLanguage = {};
 
   Future<void> _loadImages() async {
     if (_imagePaths.isNotEmpty) return;
     try {
-      final manifestJson = await rootBundle.loadString('AssetManifest.json');
-      final Map<String, dynamic> manifestMap = json.decode(manifestJson);
-      _imagePaths = manifestMap.keys
-          .where((String key) => key.startsWith('assets/images/'))
-          .toList();
-    } catch (_) {}
+      // Try AssetManifest.json (Flutter < 3.12)
+      final manifestStr = await rootBundle.loadString('AssetManifest.json');
+      // The manifest is a JSON map: { "assets/images/image_1.jpg": [...], ... }
+      // Simple regex extraction to avoid dart:convert dependency issues
+      final regex = RegExp(r'"(assets/images/[^"]+\.jpg)"');
+      final matches = regex.allMatches(manifestStr);
+      _imagePaths = matches.map((m) => m.group(1)!).toList();
+    } catch (_) {
+      _imagePaths = [];
+    }
+
+    // Fallback: generate paths for image_1 through image_419
+    if (_imagePaths.isEmpty) {
+      _imagePaths = List.generate(
+        _imageCount,
+        (i) => 'assets/images/image_${i + 1}.jpg',
+      );
+    }
   }
 
-  Future<List<Quote>> _loadAllQuotes(String language) async {
-    final csvRaw = await rootBundle.loadString('assets/data/master_quotes_turkish.csv');
-    final rows = const CsvDecoder(
-      fieldDelimiter: ',',
-      quoteCharacter: '"',
-      skipEmptyLines: true,
-    ).convert(csvRaw);
-    if (rows.isEmpty) return const [];
+  String _randomImagePath() {
+    if (_imagePaths.isEmpty) return 'assets/images/image_1.jpg';
+    return _imagePaths[_rng.nextInt(_imagePaths.length)];
+  }
 
+  Future<List<Quote>> _loadAllQuotes() async {
+    const fieldDelimiter = ',';
+    final csvRaw = await rootBundle.loadString(
+      'assets/data/master_quotes_turkish.csv',
+    );
+
+    // Simple CSV parser that handles quoted fields with commas inside
+    final lines = csvRaw.split('\n');
     final quotes = <Quote>[];
-    for (var i = 1; i < rows.length; i++) {
-      final row = rows[i];
-      if (row.length < 3) continue;
-      final textTr = (row[0] ?? '').toString().trim();
-      final textEn = (row[1] ?? '').toString().trim();
-      final author = (row[2] ?? '').toString().trim();
-      
+
+    for (var i = 1; i < lines.length; i++) {
+      final line = lines[i].trim();
+      if (line.isEmpty) continue;
+
+      final fields = _parseCsvLine(line, fieldDelimiter);
+      if (fields.length < 2) continue;
+
+      final textTr = fields[0].trim();
       if (textTr.isEmpty) continue;
+
+      final textEn = fields.length > 1 ? fields[1].trim() : '';
+      final author = fields.length > 2 ? fields[2].trim() : '';
+
       quotes.add(Quote(
         textTr: textTr,
         authorTr: author.isEmpty ? 'Anonim' : author,
-        textEn: textEn,
+        textEn: textEn.isEmpty ? textTr : textEn,
         authorEn: author.isEmpty ? 'Unknown' : author,
-        imageAsset: '', // Set dynamically
+        imageAsset: '', // set dynamically per call
       ));
     }
     return quotes;
   }
 
+  List<String> _parseCsvLine(String line, String delimiter) {
+    final fields = <String>[];
+    final sb = StringBuffer();
+    var inQuotes = false;
+
+    for (var i = 0; i < line.length; i++) {
+      final ch = line[i];
+      if (ch == '"') {
+        inQuotes = !inQuotes;
+      } else if (ch == delimiter && !inQuotes) {
+        fields.add(sb.toString());
+        sb.clear();
+      } else {
+        sb.write(ch);
+      }
+    }
+    fields.add(sb.toString());
+    return fields;
+  }
+
   Future<List<Quote>> getAllQuotes({required String language}) async {
-    _cacheByLanguage[language] ??= await _loadAllQuotes(language);
+    _cacheByLanguage[language] ??= await _loadAllQuotes();
     return _cacheByLanguage[language]!;
   }
 
   Future<Quote> getRandomQuote({required String language}) async {
     final quotes = await getAllQuotes(language: language);
     await _loadImages();
-
-    final imageAsset = _imagePaths.isNotEmpty
-        ? _imagePaths[_rng.nextInt(_imagePaths.length)]
-        : 'assets/images/image_1.jpg'; // Fallback
+    final image = _randomImagePath();
 
     if (quotes.isEmpty) {
       return Quote(
@@ -70,17 +112,17 @@ class QuoteService {
         authorTr: 'MotivMood',
         textEn: 'Motivation is the natural result of habits.',
         authorEn: 'MotivMood',
-        imageAsset: imageAsset,
+        imageAsset: image,
       );
     }
-    
+
     final q = quotes[_rng.nextInt(quotes.length)];
     return Quote(
       textTr: q.textTr,
       authorTr: q.authorTr,
       textEn: q.textEn,
       authorEn: q.authorEn,
-      imageAsset: imageAsset,
+      imageAsset: image,
     );
   }
 
@@ -88,4 +130,3 @@ class QuoteService {
     _cacheByLanguage.clear();
   }
 }
-

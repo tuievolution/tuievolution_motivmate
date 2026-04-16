@@ -12,69 +12,91 @@ import '../widgets/editing_drawer.dart';
 import '../widgets/quote_card.dart';
 import '../widgets/settings_drawer.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  // Controller must live as long as the widget — NOT created in build()
+  final ScreenshotController _screenshotController = ScreenshotController();
 
   ColorFilter? _buildColorFilter(String id) {
     switch (id) {
       case 'sepia':
-        return const ColorFilter.mode(
-          Color(0xFF7A4D2A),
-          BlendMode.color,
-        );
+        return const ColorFilter.mode(Color(0xFF7A4D2A), BlendMode.color);
       case 'mono':
-        // Grayscale matrix.
         return ColorFilter.matrix(const <double>[
-          0.2126,
-          0.7152,
-          0.0722,
-          0,
-          0,
-          0.2126,
-          0.7152,
-          0.0722,
-          0,
-          0,
-          0.2126,
-          0.7152,
-          0.0722,
-          0,
-          0,
-          0,
-          0,
-          0,
-          1,
-          0,
+          0.2126, 0.7152, 0.0722, 0, 0,
+          0.2126, 0.7152, 0.0722, 0, 0,
+          0.2126, 0.7152, 0.0722, 0, 0,
+          0, 0, 0, 1, 0,
         ]);
       case 'vintage':
-        return const ColorFilter.mode(
-          Color(0xFFB08968),
-          BlendMode.softLight,
-        );
+        return const ColorFilter.mode(Color(0xFFB08968), BlendMode.softLight);
+      case 'warm':
+        return const ColorFilter.mode(Color(0xFFFF9800), BlendMode.softLight);
+      case 'cool':
+        return const ColorFilter.mode(Color(0xFF4264FB), BlendMode.softLight);
       case 'cinematic':
-        return const ColorFilter.mode(
-          Color(0xFF1B1B1B),
-          BlendMode.darken,
-        );
+        return const ColorFilter.mode(Color(0xFF1B1B1B), BlendMode.darken);
+      case 'rosy':
+        return const ColorFilter.mode(Color(0xFFE91E63), BlendMode.softLight);
+      case 'faded':
+        return const ColorFilter.mode(Color(0xFFCCCCCC), BlendMode.lighten);
       case 'none':
       default:
         return null;
     }
   }
 
+  Future<void> _saveCurrentView(BuildContext scaffoldCtx) async {
+    try {
+      final bytes = await _screenshotController.capture(pixelRatio: 2.0);
+      if (bytes == null) {
+        if (!scaffoldCtx.mounted) return;
+        ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
+          const SnackBar(content: Text('Ekran görüntüsü alınamadı.')),
+        );
+        return;
+      }
+      final hasAccess = await Gal.requestAccess(toAlbum: true);
+      if (hasAccess) {
+        await Gal.putImageBytes(bytes, album: 'MotivMood');
+        if (!scaffoldCtx.mounted) return;
+        ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
+          const SnackBar(content: Text('✓ Görsel galeriye kaydedildi.')),
+        );
+      } else {
+        if (!scaffoldCtx.mounted) return;
+        ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
+          const SnackBar(content: Text('Galeri erişimi reddedildi.')),
+        );
+      }
+    } catch (e) {
+      if (!scaffoldCtx.mounted) return;
+      ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
+        SnackBar(content: Text('Kaydedilemedi: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    final preset = themePresets
-        .firstWhere((e) => e.id == appState.settings.themeId, orElse: () => themePresets.first);
-    final screenshotController = ScreenshotController();
+    final preset = themePresets.firstWhere(
+      (e) => e.id == appState.settings.themeId,
+      orElse: () => themePresets.first,
+    );
 
     return Scaffold(
       drawer: const SettingsDrawer(),
       body: SafeArea(
         child: Builder(
           builder: (scaffoldContext) => Screenshot(
-            controller: screenshotController,
+            controller: _screenshotController,
             child: LayoutBuilder(
               builder: (ctx, constraints) {
                 final cardWidth = appState.settings.cardWidthPx.clamp(180.0, 420.0);
@@ -83,13 +105,14 @@ class HomeScreen extends StatelessWidget {
                 const cardTopInset = 84.0;
                 const cardBottomInset = 170.0;
                 final leftMaxPx = max(0.0, constraints.maxWidth - cardWidth);
-                final topAreaHeight =
-                    max(0.0, constraints.maxHeight - cardHeight - cardTopInset - cardBottomInset);
+                final topAreaHeight = max(
+                  0.0,
+                  constraints.maxHeight - cardHeight - cardTopInset - cardBottomInset,
+                );
 
-                final effectiveBlur =
-                    appState.isOriginalView ? 0.0 : appState.settings.blurSigma;
-
-                final showCard = appState.isQuoteVisible && !appState.isOriginalView;
+                final effectiveBlur = appState.isOriginalView ? 0.0 : appState.settings.blurSigma;
+                final showCard = !appState.isOriginalView;
+                final showCardBg = appState.isQuoteVisible && showCard;
 
                 final normalizedLeft = appState.settings.cardLeftN.clamp(0.0, 1.0);
                 final normalizedTop = appState.settings.cardTopN.clamp(0.0, 1.0);
@@ -126,63 +149,57 @@ class HomeScreen extends StatelessWidget {
                     Positioned.fill(
                       child: Container(
                         color: preset.overlayColor.withOpacity(
-                          appState.isOriginalView ? 0 : appState.settings.backgroundOverlayOpacity,
+                          appState.isOriginalView
+                              ? 0
+                              : appState.settings.backgroundOverlayOpacity,
                         ),
                       ),
                     ),
                   ],
                 );
 
-                Future<void> saveCurrentView() async {
-                  final bytes = await screenshotController.capture(pixelRatio: 2.0);
-                  if (bytes == null) return;
-                  try {
-                    final hasAccess = await Gal.requestAccess(toAlbum: true);
-                    if (hasAccess) {
-                      await Gal.putImageBytes(bytes, album: 'MotivMood');
-                      if (!scaffoldContext.mounted) return;
-                      ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                        const SnackBar(content: Text('Görsel galeriye kaydedildi.')),
-                      );
-                    } else {
-                      if (!scaffoldContext.mounted) return;
-                      ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                        const SnackBar(content: Text('Galeri erişimi reddedildi.')),
-                      );
-                    }
-                  } catch (e) {
-                    if (!scaffoldContext.mounted) return;
-                    ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                      SnackBar(content: Text('Kaydedilirken hata oluştu: $e')),
-                    );
-                  }
-                }
-
                 return Stack(
                   children: [
                     Positioned.fill(child: blurredBackground),
+
+                    // ── MotivMood Header ──────────────────────────────────
                     Positioned(
-                      top: 16,
+                      top: 20,
                       left: 0,
                       right: 0,
-                      child: Text(
-                        'MotivMood',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.5,
-                          shadows: const [
-                            Shadow(
-                              color: Colors.black45,
-                              blurRadius: 10,
-                              offset: Offset(0, 2),
+                      child: Column(
+                        children: [
+                          Text(
+                            'MotivMood',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 3.0,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withOpacity(0.6),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 2),
+                          Container(
+                            height: 2,
+                            width: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.7),
+                              borderRadius: BorderRadius.circular(1),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+
+                    // ── Quote Card ────────────────────────────────────────
                     if (showCard)
                       Positioned(
                         left: cardLeft,
@@ -193,14 +210,15 @@ class HomeScreen extends StatelessWidget {
                           text: appState.quote.text(appState.settings.appLanguage),
                           author: appState.quote.author(appState.settings.appLanguage),
                           cardBackgroundColor: preset.cardBackgroundColor,
-                          quoteTextColor:
-                              Color(appState.settings.textColorValue),
+                          quoteTextColor: Color(appState.settings.textColorValue),
                           opacity: appState.settings.cardOpacity,
                           fontSize: appState.settings.fontSize,
                           fontFamily: appState.settings.fontFamily,
-                          showBackground: appState.settings.showCardBackground,
+                          showBackground: showCardBg,
                         ),
                       ),
+
+                    // ── Bottom Action Bar ─────────────────────────────────
                     Positioned(
                       left: 0,
                       right: 0,
@@ -220,7 +238,7 @@ class HomeScreen extends StatelessWidget {
                             children: [
                               _ActionButton(
                                 icon: Icons.edit,
-                                onTap: () async {
+                                onTap: () {
                                   showModalBottomSheet<void>(
                                     context: scaffoldContext,
                                     isScrollControlled: true,
@@ -232,7 +250,7 @@ class HomeScreen extends StatelessWidget {
                                     ),
                                     builder: (_) => EditingDrawer(
                                       appState: appState,
-                                      onDownload: saveCurrentView,
+                                      onDownload: () => _saveCurrentView(scaffoldContext),
                                     ),
                                   );
                                 },
@@ -247,14 +265,12 @@ class HomeScreen extends StatelessWidget {
                               const SizedBox(width: 10),
                               _ActionButton(
                                 icon: Icons.download,
-                                onTap: saveCurrentView,
+                                onTap: () => _saveCurrentView(scaffoldContext),
                               ),
                               const SizedBox(width: 10),
                               _ActionButton(
                                 icon: Icons.settings,
-                                onTap: () {
-                                  Scaffold.of(scaffoldContext).openDrawer();
-                                },
+                                onTap: () => Scaffold.of(scaffoldContext).openDrawer(),
                               ),
                             ],
                           ),
@@ -276,10 +292,7 @@ class _ActionButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
 
-  const _ActionButton({
-    required this.icon,
-    required this.onTap,
-  });
+  const _ActionButton({required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -295,4 +308,3 @@ class _ActionButton extends StatelessWidget {
     );
   }
 }
-

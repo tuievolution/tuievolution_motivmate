@@ -5,12 +5,16 @@ import '../models/app_settings.dart';
 import '../models/theme_presets.dart';
 import 'quote_card.dart';
 
+// The insets must match home_screen.dart so positioning is identical
+const _cardTopInset = 84.0;
+const _cardBottomInset = 170.0;
+
 class CardResizerPopup extends StatefulWidget {
   final AppSettings settings;
   final AppState appState;
 
   const CardResizerPopup({
-    super.key, 
+    super.key,
     required this.settings,
     required this.appState,
   });
@@ -28,10 +32,10 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
   @override
   void initState() {
     super.initState();
-    w = widget.settings.cardWidthPx;
-    h = widget.settings.cardHeightPx;
-    xN = widget.settings.cardLeftN;
-    yN = widget.settings.cardTopN;
+    w = widget.settings.cardWidthPx.clamp(180.0, 420.0);
+    h = widget.settings.cardHeightPx.clamp(150.0, 520.0);
+    xN = widget.settings.cardLeftN.clamp(0.0, 1.0);
+    yN = widget.settings.cardTopN.clamp(0.0, 1.0);
   }
 
   @override
@@ -46,6 +50,7 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
       body: SafeArea(
         child: Column(
           children: [
+            // ── App bar ────────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
@@ -56,9 +61,13 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
                   ),
                   const Expanded(
                     child: Text(
-                      'Kartı Düzenle',
+                      'Kart Konumu ve Boyutu',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   TextButton(
@@ -73,7 +82,11 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
                     },
                     child: const Text(
                       'Uygula',
-                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -82,25 +95,29 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24),
               child: Text(
-                'Kartı ekranda sürükleyin, genişletmek için sağ alt köşedeki mavi ikonu kullanın.',
+                'Kartı sürükleyin • Mavi köşeden boyutlandırın',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white70, fontSize: 13),
+                style: TextStyle(color: Colors.white60, fontSize: 12),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
+
+            // ── Canvas (same inset logic as home_screen) ───────────────
             Expanded(
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final pw = constraints.maxWidth;
                   final ph = constraints.maxHeight;
 
+                  // Replicate home_screen.dart coordinate maths exactly
                   final leftMaxPx = (pw - w).clamp(0.0, pw);
-                  final topAreaHeight = (ph - h).clamp(0.0, ph);
+                  final topAreaHeight = (ph - h - _cardTopInset - _cardBottomInset).clamp(0.0, ph);
 
                   final cardLeft = xN * leftMaxPx;
-                  final cardTop = yN * topAreaHeight;
+                  final cardTop = _cardTopInset + yN * topAreaHeight;
 
                   return GestureDetector(
+                    // drag moves the card
                     onPanUpdate: (details) {
                       setState(() {
                         final denomW = leftMaxPx == 0.0 ? 1.0 : leftMaxPx;
@@ -113,12 +130,16 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
                       color: Colors.transparent,
                       child: Stack(
                         children: [
+                          // Card preview
                           Positioned(
                             left: cardLeft,
                             top: cardTop,
                             child: Container(
                               decoration: BoxDecoration(
-                                border: Border.all(color: Colors.white38, width: 2),
+                                border: Border.all(
+                                  color: Colors.white38,
+                                  width: 2,
+                                ),
                                 borderRadius: BorderRadius.circular(18),
                               ),
                               child: QuoteCard(
@@ -135,9 +156,11 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
                               ),
                             ),
                           ),
+
+                          // Resize handle (bottom-right of card)
                           Positioned(
-                            left: cardLeft + w - 24,
-                            top: cardTop + h - 24,
+                            left: cardLeft + w - 22,
+                            top: cardTop + h - 22,
                             child: GestureDetector(
                               onPanUpdate: (d) {
                                 setState(() {
@@ -154,14 +177,18 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
                                   boxShadow: [
                                     BoxShadow(
                                       color: Colors.black45,
-                                      blurRadius: 4,
+                                      blurRadius: 6,
                                       offset: Offset(0, 2),
-                                    )
-                                  ]
+                                    ),
+                                  ],
                                 ),
-                                child: const Icon(Icons.open_with, size: 22, color: Colors.white),
+                                child: const Icon(
+                                  Icons.open_with,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
                               ),
-                            )
+                            ),
                           ),
                         ],
                       ),
@@ -170,7 +197,7 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
                 },
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
           ],
         ),
       ),

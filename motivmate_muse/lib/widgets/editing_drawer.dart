@@ -135,33 +135,35 @@ class _EditingDrawerState extends State<EditingDrawer> {
     const filters = <String, String>{
       'none': 'Varsayılan',
       'sepia': 'Sepya',
-      'mono': 'Mono',
+      'mono': 'Siyah Beyaz',
       'vintage': 'Vintage',
-      'cinematic': 'Sinema',
+      'warm': 'Sıcak',
+      'cool': 'Soğuk',
+      'cinematic': 'Sinematik',
+      'rosy': 'Pembe Ton',
+      'faded': 'Soluk',
     };
 
     return ListView(
       children: [
-        ListTile(
+        const ListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Blurluk'),
-          subtitle: Text('${draft.blurSigma.toStringAsFixed(0)}'),
+          title: Text('Blurluk'),
         ),
         Slider(
           value: draft.blurSigma,
           min: 0,
           max: 25,
           divisions: 50,
-          label: '${draft.blurSigma.toStringAsFixed(0)}',
+          label: draft.blurSigma.toStringAsFixed(0),
           onChanged: (v) {
             _updateDraft(draft.copyWith(blurSigma: v));
           },
         ),
         const SizedBox(height: 8),
-        ListTile(
+        const ListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Filtre'),
-          subtitle: Text('Arka plana renk efekti'),
+          title: Text('Fotoğraf Filtresi'),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -181,21 +183,6 @@ class _EditingDrawerState extends State<EditingDrawer> {
             },
           ),
         ),
-        const SizedBox(height: 18),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Yeni arka plan'),
-          subtitle: const Text('MotivMate içinden rastgele seçim'),
-          trailing: const Icon(Icons.shuffle),
-          onTap: () async {
-            await widget.appState.refreshQuote();
-          },
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Ipu: Kalp butonu yalnizca kart/yazi gorunurlugunu acip kapatir.',
-          style: TextStyle(color: Colors.black.withOpacity(0.6)),
-        ),
         const SizedBox(height: 20),
       ],
     );
@@ -204,17 +191,17 @@ class _EditingDrawerState extends State<EditingDrawer> {
   Widget _buildCardTab() {
     return ListView(
       children: [
+        // Single toggle: OFF = hide card background, text stays visible
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Kart gösterilsin'),
-          value: widget.appState.isQuoteVisible,
-          onChanged: (v) => widget.appState.setQuoteVisibility(v),
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Kart arka planı gösterilsin'),
+          subtitle: const Text('Kapalıyken yazı görünür kalır'),
           value: draft.showCardBackground,
-          onChanged: (v) => _updateDraft(draft.copyWith(showCardBackground: v)),
+          onChanged: (v) {
+            _updateDraft(draft.copyWith(showCardBackground: v));
+            // Mirror to appState so live preview updates
+            widget.appState.setQuoteVisibility(true);
+          },
         ),
         const SizedBox(height: 8),
         ListTile(
@@ -279,14 +266,16 @@ class _EditingDrawerState extends State<EditingDrawer> {
   Widget _buildTextTab() {
     final currentColor = Color(draft.textColorValue);
     const fonts = <String>[
-      'Georgia',
-      'Times New Roman',
-      'Courier New',
-      'Arial',
       'Roboto',
-      'Helvetica',
+      'Georgia',
+      'Courier New',
+      'Palatino Linotype',
+      'Impact',
+      'Comic Sans MS',
       'Trebuchet MS',
-      'Verdana',
+      'Lucida Console',
+      'Tahoma',
+      'Garamond',
     ];
 
     return ListView(
