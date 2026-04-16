@@ -8,6 +8,7 @@ class QuoteCard extends StatelessWidget {
   final double opacity;
   final double fontSize;
   final String fontFamily;
+  final bool showBackground;
 
   final double width;
   final double height;
@@ -28,6 +29,7 @@ class QuoteCard extends StatelessWidget {
     this.height = 260,
     this.borderRadius = 16,
     this.quotePadding = 18,
+    this.showBackground = true,
   });
 
   @override
@@ -40,14 +42,16 @@ class QuoteCard extends StatelessWidget {
       child: Container(
         width: width,
         height: height,
-        decoration: BoxDecoration(
-          color: effectiveBackground,
-          borderRadius: BorderRadius.circular(borderRadius),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.22),
-            width: 1,
-          ),
-        ),
+        decoration: showBackground
+            ? BoxDecoration(
+                color: effectiveBackground,
+                borderRadius: BorderRadius.circular(borderRadius),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.22),
+                  width: 1,
+                ),
+              )
+            : null,
         padding: EdgeInsets.all(quotePadding),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

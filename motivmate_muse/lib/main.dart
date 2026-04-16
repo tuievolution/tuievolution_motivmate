@@ -17,7 +17,9 @@ Future<void> main() async {
   final initialSettings = await storageService.loadSettings();
 
   final quoteService = QuoteService();
-  final initialQuote = await quoteService.getRandomQuote();
+  final initialQuote = await quoteService.getRandomQuote(
+    language: initialSettings.appLanguage,
+  );
 
   final notificationService = NotificationService();
   await notificationService.init();

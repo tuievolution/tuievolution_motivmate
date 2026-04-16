@@ -17,6 +17,7 @@ class AppState extends ChangeNotifier {
 
   AppSettings settings;
   Quote quote;
+  bool isQuoteVisible;
 
   bool isOriginalView = false;
 
@@ -30,7 +31,8 @@ class AppState extends ChangeNotifier {
     required AppSettings initialSettings,
     required Quote initialQuote,
   })  : settings = initialSettings,
-        quote = initialQuote;
+        quote = initialQuote,
+        isQuoteVisible = initialSettings.showCard;
 
   Future<void> initialize() async {
     _lastPopupShownAt = await storageService.loadLastPopupShownAt();
@@ -43,14 +45,29 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void toggleQuoteVisibility() {
+    isQuoteVisible = !isQuoteVisible;
+    notifyListeners();
+  }
+
+  void setQuoteVisibility(bool visible) {
+    isQuoteVisible = visible;
+    notifyListeners();
+  }
+
   Future<void> shuffleBackground() async {
-    quote = await quoteService.getRandomQuote();
+    quote = await quoteService.getRandomQuote(language: settings.appLanguage);
     notifyListeners();
   }
 
   // Update settings for UI preview only; call persistSettings() when done.
   void updateSettingsTemporary(AppSettings newSettings) {
+    final languageChanged = settings.appLanguage != newSettings.appLanguage;
     settings = newSettings;
+    if (languageChanged) {
+      quoteService.clearCache();
+      unawaited(refreshQuote());
+    }
     notifyListeners();
   }
 
@@ -69,7 +86,9 @@ class AppState extends ChangeNotifier {
       return;
     }
 
-    final allQuotes = await quoteService.getAllQuotes();
+    final allQuotes = await quoteService.getAllQuotes(
+      language: settings.appLanguage,
+    );
     final scheduleQuotes = allQuotes.isEmpty ? [quote] : allQuotes.take(8).toList();
     await notificationService.scheduleBarNotifications(
       settings: settings,
@@ -199,7 +218,7 @@ class AppState extends ChangeNotifier {
   // Called from settings/edit screens to refresh the in-app quote and,
   // optionally, influence notifications payload for the next schedule window.
   Future<void> refreshQuote() async {
-    quote = await quoteService.getRandomQuote();
+    quote = await quoteService.getRandomQuote(language: settings.appLanguage);
     notifyListeners();
   }
 }

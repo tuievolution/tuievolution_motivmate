@@ -2,7 +2,9 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:provider/provider.dart';
+import 'package:screenshot/screenshot.dart';
 
 import '../app_state.dart';
 import '../models/theme_presets.dart';
@@ -65,137 +67,104 @@ class HomeScreen extends StatelessWidget {
     final appState = context.watch<AppState>();
     final preset = themePresets
         .firstWhere((e) => e.id == appState.settings.themeId, orElse: () => themePresets.first);
+    final screenshotController = ScreenshotController();
 
     return Scaffold(
       drawer: const SettingsDrawer(),
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (ctx, constraints) {
-            const baseCardWidth = 330.0;
-            const baseCardHeight = 260.0;
-            final cardWidth = baseCardWidth * appState.settings.cardScale;
-            final cardHeight = baseCardHeight * appState.settings.cardScale;
+        child: Builder(
+          builder: (scaffoldContext) => Screenshot(
+            controller: screenshotController,
+            child: LayoutBuilder(
+              builder: (ctx, constraints) {
+                final cardWidth = appState.settings.cardWidthPx.clamp(180.0, 420.0);
+                final cardHeight = appState.settings.cardHeightPx.clamp(150.0, 520.0);
 
-            const cardTopInset = 84.0;
-            const cardBottomInset = 170.0;
-            final leftMaxPx = max(0.0, constraints.maxWidth - cardWidth);
-            final topAreaHeight =
-                max(0.0, constraints.maxHeight - cardHeight - cardTopInset - cardBottomInset);
+                const cardTopInset = 84.0;
+                const cardBottomInset = 170.0;
+                final leftMaxPx = max(0.0, constraints.maxWidth - cardWidth);
+                final topAreaHeight =
+                    max(0.0, constraints.maxHeight - cardHeight - cardTopInset - cardBottomInset);
 
-            final effectiveBlur =
-                appState.isOriginalView ? 0.0 : appState.settings.blurSigma;
+                final effectiveBlur =
+                    appState.isOriginalView ? 0.0 : appState.settings.blurSigma;
 
-            final showCard = appState.settings.showCard && !appState.isOriginalView;
+                final showCard = appState.isQuoteVisible && !appState.isOriginalView;
 
-            final normalizedLeft = appState.settings.cardLeftN.clamp(0.0, 1.0);
-            final normalizedTop = appState.settings.cardTopN.clamp(0.0, 1.0);
+                final normalizedLeft = appState.settings.cardLeftN.clamp(0.0, 1.0);
+                final normalizedTop = appState.settings.cardTopN.clamp(0.0, 1.0);
 
-            final cardLeft = normalizedLeft * leftMaxPx;
-            final cardTop = cardTopInset + normalizedTop * topAreaHeight;
+                final cardLeft = normalizedLeft * leftMaxPx;
+                final cardTop = cardTopInset + normalizedTop * topAreaHeight;
 
-            final backgroundImage = Image.asset(
-              appState.quote.imagePath,
-              fit: BoxFit.cover,
-            );
+                final backgroundImage = Image.asset(
+                  appState.quote.imagePath,
+                  fit: BoxFit.cover,
+                );
 
-            final colorFilter = appState.isOriginalView
-                ? null
-                : _buildColorFilter(appState.settings.photoFilterId);
+                final colorFilter = appState.isOriginalView
+                    ? null
+                    : _buildColorFilter(appState.settings.photoFilterId);
 
-            final blurredBackground = Stack(
-              fit: StackFit.expand,
-              children: [
-                if (colorFilter == null)
-                  backgroundImage
-                else
-                  ColorFiltered(colorFilter: colorFilter, child: backgroundImage),
-                if (effectiveBlur > 0)
-                  Positioned.fill(
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(
-                        sigmaX: effectiveBlur,
-                        sigmaY: effectiveBlur,
+                final blurredBackground = Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (colorFilter == null)
+                      backgroundImage
+                    else
+                      ColorFiltered(colorFilter: colorFilter, child: backgroundImage),
+                    if (effectiveBlur > 0)
+                      Positioned.fill(
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(
+                            sigmaX: effectiveBlur,
+                            sigmaY: effectiveBlur,
+                          ),
+                          child: Container(color: Colors.transparent),
+                        ),
                       ),
-                      child: Container(color: Colors.transparent),
+                    Positioned.fill(
+                      child: Container(
+                        color: preset.overlayColor.withOpacity(
+                          appState.isOriginalView ? 0 : appState.settings.backgroundOverlayOpacity,
+                        ),
+                      ),
                     ),
-                  ),
-                Positioned.fill(
-                  child: Container(
-                    color: preset.overlayColor.withOpacity(
-                      appState.isOriginalView ? 0 : appState.settings.backgroundOverlayOpacity,
-                    ),
-                  ),
-                ),
-              ],
-            );
+                  ],
+                );
 
-            return Stack(
-              children: [
-                Positioned.fill(child: blurredBackground),
-                Positioned(
-                  top: 8,
-                  left: 0,
-                  right: 0,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          onPressed: () {
-                            Scaffold.of(context).openDrawer();
-                          },
-                          icon: const Icon(Icons.menu),
-                        ),
-                        const Spacer(),
-                        Text(
-                          'MotivMate',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.black.withOpacity(0.75),
-                          ),
-                        ),
-                        const Spacer(),
-                        const CircleAvatar(
-                          radius: 18,
-                          backgroundColor: Colors.black12,
-                          child: Icon(Icons.person_outline, size: 18),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                Future<void> saveCurrentView() async {
+                  final bytes = await screenshotController.capture(pixelRatio: 2.0);
+                  if (bytes == null) return;
+                  await ImageGallerySaver.saveImage(
+                    bytes,
+                    quality: 100,
+                    name: 'motivmate_${DateTime.now().millisecondsSinceEpoch}',
+                  );
+                  if (!scaffoldContext.mounted) return;
+                  ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                    const SnackBar(content: Text('Gorsel galeriye kaydedildi.')),
+                  );
+                }
 
-                // Quote card (draggable).
-                if (showCard)
-                  Positioned(
-                    left: cardLeft,
-                    top: cardTop,
-                    child: GestureDetector(
-                      onPanUpdate: (details) {
-                        final denomW = leftMaxPx == 0 ? 1 : leftMaxPx;
-                        final denomH = topAreaHeight == 0 ? 1 : topAreaHeight;
-                        final nx = (appState.settings.cardLeftN +
-                                details.delta.dx / denomW)
-                            .clamp(0.0, 1.0);
-                        final ny = (appState.settings.cardTopN +
-                                details.delta.dy / denomH)
-                            .clamp(0.0, 1.0);
-                        appState.updateSettingsTemporary(
-                          appState.settings.copyWith(
-                            cardLeftN: nx,
-                            cardTopN: ny,
-                          ),
-                        );
-                      },
-                      onPanEnd: (_) async {
-                        await appState.persistSettings();
-                      },
-                      child: Transform.scale(
-                        scale: appState.settings.cardScale,
+                return Stack(
+                  children: [
+                    Positioned.fill(child: blurredBackground),
+                    Positioned(
+                      top: 8,
+                      left: 0,
+                      child: IconButton(
+                        onPressed: () => Scaffold.of(scaffoldContext).openDrawer(),
+                        icon: const Icon(Icons.menu),
+                      ),
+                    ),
+                    if (showCard)
+                      Positioned(
+                        left: cardLeft,
+                        top: cardTop,
                         child: QuoteCard(
-                          width: baseCardWidth,
-                          height: baseCardHeight,
+                          width: cardWidth,
+                          height: cardHeight,
                           text: appState.quote.text,
                           author: appState.quote.author,
                           cardBackgroundColor: preset.cardBackgroundColor,
@@ -204,59 +173,74 @@ class HomeScreen extends StatelessWidget {
                           opacity: appState.settings.cardOpacity,
                           fontSize: appState.settings.fontSize,
                           fontFamily: appState.settings.fontFamily,
+                          showBackground: appState.settings.showCardBackground,
+                        ),
+                      ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 24,
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.86),
+                            borderRadius: BorderRadius.circular(26),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _ActionButton(
+                                icon: Icons.edit,
+                                onTap: () async {
+                                  showModalBottomSheet<void>(
+                                    context: scaffoldContext,
+                                    isScrollControlled: true,
+                                    backgroundColor: Colors.white,
+                                    shape: const RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.vertical(
+                                        top: Radius.circular(18),
+                                      ),
+                                    ),
+                                    builder: (_) => EditingDrawer(
+                                      appState: appState,
+                                      onDownload: saveCurrentView,
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(width: 10),
+                              _ActionButton(
+                                icon: appState.isQuoteVisible
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                onTap: appState.toggleQuoteVisibility,
+                              ),
+                              const SizedBox(width: 10),
+                              _ActionButton(
+                                icon: Icons.download,
+                                onTap: saveCurrentView,
+                              ),
+                              const SizedBox(width: 10),
+                              _ActionButton(
+                                icon: Icons.settings,
+                                onTap: () {
+                                  Scaffold.of(scaffoldContext).openDrawer();
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-
-                // Bottom action buttons.
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 24,
-                  child: Center(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _ActionButton(
-                          icon: Icons.edit,
-                          onTap: () async {
-                            showModalBottomSheet<void>(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.white,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(18),
-                                ),
-                              ),
-                              builder: (_) => EditingDrawer(appState: appState),
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 18),
-                        _ActionButton(
-                          icon: appState.isOriginalView
-                              ? Icons.favorite
-                              : Icons.favorite_border,
-                          onTap: () {
-                            appState.toggleOriginalView();
-                          },
-                        ),
-                        const SizedBox(width: 18),
-                        _ActionButton(
-                          icon: Icons.settings,
-                          onTap: () {
-                            Scaffold.of(context).openDrawer();
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
+                  ],
+                );
+              },
+            ),
+          ),
         ),
       ),
     );

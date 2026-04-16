@@ -11,6 +11,7 @@ enum BarTiming {
 
 class AppSettings {
   final String themeId;
+  final String appLanguage; // tr | en
 
   // Photo edits
   final double blurSigma; // background blur intensity
@@ -18,11 +19,13 @@ class AppSettings {
 
   // Card edits
   final bool showCard;
+  final bool showCardBackground;
   final double backgroundOverlayOpacity; // overlay over background image
   final double cardOpacity; // card container opacity
   final double cardLeftN; // 0..1
   final double cardTopN; // 0..1
-  final double cardScale; // 0.8..1.2
+  final double cardWidthPx; // px
+  final double cardHeightPx; // px
 
   // Text edits
   final double fontSize;
@@ -43,14 +46,17 @@ class AppSettings {
 
   const AppSettings({
     required this.themeId,
+    required this.appLanguage,
     required this.blurSigma,
     required this.photoFilterId,
     required this.showCard,
+    required this.showCardBackground,
     required this.backgroundOverlayOpacity,
     required this.cardOpacity,
     required this.cardLeftN,
     required this.cardTopN,
-    required this.cardScale,
+    required this.cardWidthPx,
+    required this.cardHeightPx,
     required this.fontSize,
     required this.textColorValue,
     required this.fontFamily,
@@ -68,14 +74,17 @@ class AppSettings {
   factory AppSettings.defaults() {
     return AppSettings(
       themeId: 'glassmorphism',
+      appLanguage: 'tr',
       blurSigma: 10,
       photoFilterId: 'none',
       showCard: true,
+      showCardBackground: true,
       backgroundOverlayOpacity: 0.35,
       cardOpacity: 0.92,
       cardLeftN: 0.1,
       cardTopN: 0.22,
-      cardScale: 1.0,
+      cardWidthPx: 330,
+      cardHeightPx: 260,
       fontSize: 28,
       textColorValue: 0xFF2A1B12,
       fontFamily: 'Georgia',
@@ -93,14 +102,17 @@ class AppSettings {
 
   AppSettings copyWith({
     String? themeId,
+    String? appLanguage,
     double? blurSigma,
     String? photoFilterId,
     bool? showCard,
+    bool? showCardBackground,
     double? backgroundOverlayOpacity,
     double? cardOpacity,
     double? cardLeftN,
     double? cardTopN,
-    double? cardScale,
+    double? cardWidthPx,
+    double? cardHeightPx,
     double? fontSize,
     int? textColorValue,
     String? fontFamily,
@@ -116,15 +128,18 @@ class AppSettings {
   }) {
     return AppSettings(
       themeId: themeId ?? this.themeId,
+      appLanguage: appLanguage ?? this.appLanguage,
       blurSigma: blurSigma ?? this.blurSigma,
       photoFilterId: photoFilterId ?? this.photoFilterId,
       showCard: showCard ?? this.showCard,
+      showCardBackground: showCardBackground ?? this.showCardBackground,
       backgroundOverlayOpacity:
           backgroundOverlayOpacity ?? this.backgroundOverlayOpacity,
       cardOpacity: cardOpacity ?? this.cardOpacity,
       cardLeftN: cardLeftN ?? this.cardLeftN,
       cardTopN: cardTopN ?? this.cardTopN,
-      cardScale: cardScale ?? this.cardScale,
+      cardWidthPx: cardWidthPx ?? this.cardWidthPx,
+      cardHeightPx: cardHeightPx ?? this.cardHeightPx,
       fontSize: fontSize ?? this.fontSize,
       textColorValue: textColorValue ?? this.textColorValue,
       fontFamily: fontFamily ?? this.fontFamily,
@@ -152,14 +167,17 @@ class AppSettings {
 
   Map<String, Object?> toJson() => {
         'themeId': themeId,
+        'appLanguage': appLanguage,
         'blurSigma': blurSigma,
         'photoFilterId': photoFilterId,
         'showCard': showCard,
+        'showCardBackground': showCardBackground,
         'backgroundOverlayOpacity': backgroundOverlayOpacity,
         'cardOpacity': cardOpacity,
         'cardLeftN': cardLeftN,
         'cardTopN': cardTopN,
-        'cardScale': cardScale,
+        'cardWidthPx': cardWidthPx,
+        'cardHeightPx': cardHeightPx,
         'fontSize': fontSize,
         'textColorValue': textColorValue,
         'fontFamily': fontFamily,
@@ -178,10 +196,13 @@ class AppSettings {
     final defaults = AppSettings.defaults();
     return defaults.copyWith(
       themeId: json['themeId'] as String? ?? defaults.themeId,
+      appLanguage: json['appLanguage'] as String? ?? defaults.appLanguage,
       blurSigma: (json['blurSigma'] as num?)?.toDouble() ?? defaults.blurSigma,
       photoFilterId:
           json['photoFilterId'] as String? ?? defaults.photoFilterId,
       showCard: json['showCard'] as bool? ?? defaults.showCard,
+      showCardBackground:
+          json['showCardBackground'] as bool? ?? defaults.showCardBackground,
       backgroundOverlayOpacity: (json['backgroundOverlayOpacity'] as num?)
               ?.toDouble() ??
           defaults.backgroundOverlayOpacity,
@@ -190,7 +211,10 @@ class AppSettings {
       cardLeftN: (json['cardLeftN'] as num?)?.toDouble() ??
           defaults.cardLeftN,
       cardTopN: (json['cardTopN'] as num?)?.toDouble() ?? defaults.cardTopN,
-      cardScale: (json['cardScale'] as num?)?.toDouble() ?? defaults.cardScale,
+      cardWidthPx:
+          (json['cardWidthPx'] as num?)?.toDouble() ?? defaults.cardWidthPx,
+      cardHeightPx:
+          (json['cardHeightPx'] as num?)?.toDouble() ?? defaults.cardHeightPx,
       fontSize: (json['fontSize'] as num?)?.toDouble() ?? defaults.fontSize,
       textColorValue: json['textColorValue'] as int? ?? defaults.textColorValue,
       fontFamily: json['fontFamily'] as String? ?? defaults.fontFamily,

@@ -4,18 +4,23 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../app_state.dart';
 import '../models/app_settings.dart';
 import '../models/theme_presets.dart';
+import 'card_resizer_popup.dart';
 
 class EditingDrawer extends StatefulWidget {
   final AppState appState;
+  final Future<void> Function() onDownload;
 
-  const EditingDrawer({super.key, required this.appState});
+  const EditingDrawer({
+    super.key,
+    required this.appState,
+    required this.onDownload,
+  });
 
   @override
   State<EditingDrawer> createState() => _EditingDrawerState();
 }
 
-class _EditingDrawerState extends State<EditingDrawer>
-    with SingleTickerProviderStateMixin {
+class _EditingDrawerState extends State<EditingDrawer> {
   late AppSettings draft;
   late final AppSettings original;
 
@@ -43,7 +48,7 @@ class _EditingDrawerState extends State<EditingDrawer>
           length: 3,
           child: Column(
             children: [
-              const SizedBox(height: 8),
+              const SizedBox(height: 22),
               Row(
                 children: [
                   Container(
@@ -106,6 +111,7 @@ class _EditingDrawerState extends State<EditingDrawer>
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () async {
+                        draft = draft.copyWith(showCard: widget.appState.isQuoteVisible);
                         widget.appState.updateSettingsTemporary(draft);
                         await widget.appState.persistSettings(
                           rescheduleNotifications: false,
@@ -187,7 +193,7 @@ class _EditingDrawerState extends State<EditingDrawer>
         ),
         const SizedBox(height: 4),
         Text(
-          'İpucu: Kalp ile orijinal görünüme geçebilir, tekrar düzenlenmiş görünüme dönersin.',
+          'Ipu: Kalp butonu yalnizca kart/yazi gorunurlugunu acip kapatir.',
           style: TextStyle(color: Colors.black.withOpacity(0.6)),
         ),
         const SizedBox(height: 20),
@@ -201,8 +207,14 @@ class _EditingDrawerState extends State<EditingDrawer>
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Kart gösterilsin'),
-          value: draft.showCard,
-          onChanged: (v) => _updateDraft(draft.copyWith(showCard: v)),
+          value: widget.appState.isQuoteVisible,
+          onChanged: (v) => widget.appState.setQuoteVisibility(v),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Kart arka planı gösterilsin'),
+          value: draft.showCardBackground,
+          onChanged: (v) => _updateDraft(draft.copyWith(showCardBackground: v)),
         ),
         const SizedBox(height: 8),
         ListTile(
@@ -229,54 +241,32 @@ class _EditingDrawerState extends State<EditingDrawer>
           divisions: 60,
           onChanged: (v) => _updateDraft(draft.copyWith(cardOpacity: v)),
         ),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Kart büyüklüğü'),
-          subtitle: Text('${draft.cardScale.toStringAsFixed(2)}x'),
+        const SizedBox(height: 12),
+        ElevatedButton.icon(
+          onPressed: () async {
+            final updated = await Navigator.of(context).push<AppSettings>(
+              MaterialPageRoute(
+                builder: (_) => CardResizerPopup(settings: draft),
+                fullscreenDialog: true,
+              ),
+            );
+            if (updated != null) {
+              _updateDraft(updated);
+            }
+          },
+          icon: const Icon(Icons.crop_free),
+          label: const Text('Kart Konumu ve Boyutunu Düzenle'),
         ),
-        Slider(
-          value: draft.cardScale,
-          min: 0.8,
-          max: 1.2,
-          divisions: 40,
-          onChanged: (v) => _updateDraft(draft.copyWith(cardScale: v)),
-        ),
-        const SizedBox(height: 14),
-        const Text(
-          'Kart konumu (telefon görünümüne göre)',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 10,
-          children: [
-            ChoiceChip(
-              label: const Text('Üst'),
-              selected: draft.cardTopN < 0.28,
-              onSelected: (_) {
-                _updateDraft(draft.copyWith(cardTopN: 0.18));
-              },
-            ),
-            ChoiceChip(
-              label: const Text('Orta'),
-              selected: draft.cardTopN >= 0.28 && draft.cardTopN < 0.55,
-              onSelected: (_) {
-                _updateDraft(draft.copyWith(cardTopN: 0.38));
-              },
-            ),
-            ChoiceChip(
-              label: const Text('Alt'),
-              selected: draft.cardTopN >= 0.55,
-              onSelected: (_) {
-                _updateDraft(draft.copyWith(cardTopN: 0.62));
-              },
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
         Text(
-          'Kartı ana ekranda sürükleyerek istediğin yere koyabilirsin.',
+          'Arayüzle sürükleyip köşelerden tam ölçü verebilirsin.',
           style: TextStyle(color: Colors.black.withOpacity(0.6)),
+        ),
+        const SizedBox(height: 12),
+        ElevatedButton.icon(
+          onPressed: widget.onDownload,
+          icon: const Icon(Icons.download),
+          label: const Text('İndir'),
         ),
         const SizedBox(height: 20),
       ],
@@ -285,7 +275,16 @@ class _EditingDrawerState extends State<EditingDrawer>
 
   Widget _buildTextTab() {
     final currentColor = Color(draft.textColorValue);
-    const fonts = <String>['Georgia', 'Times New Roman', 'Courier New', 'Arial'];
+    const fonts = <String>[
+      'Georgia',
+      'Times New Roman',
+      'Courier New',
+      'Arial',
+      'Roboto',
+      'Helvetica',
+      'Trebuchet MS',
+      'Verdana',
+    ];
 
     return ListView(
       children: [

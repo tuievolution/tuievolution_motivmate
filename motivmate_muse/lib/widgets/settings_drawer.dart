@@ -27,8 +27,19 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
   }
 
   Future<void> _commit({required bool rescheduleNotifications}) async {
-    _app.updateSettingsTemporary(draft);
-    await _app.persistSettings(rescheduleNotifications: rescheduleNotifications);
+    try {
+      _app.updateSettingsTemporary(draft);
+      await _app.persistSettings(
+        rescheduleNotifications: rescheduleNotifications,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bildirim ayarı uygulanamadı, tekrar deneyin.'),
+        ),
+      );
+    }
   }
 
   int _clampMinutes(int v) => v.clamp(0, 24 * 60 - 1);
@@ -60,6 +71,25 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.language),
+              title: const Text('Uygulama Dili'),
+              subtitle: const Text('Alıntı ve arayüz dili seçimi'),
+              trailing: DropdownButton<String>(
+                value: draft.appLanguage,
+                items: const [
+                  DropdownMenuItem(value: 'tr', child: Text('Türkçe')),
+                  DropdownMenuItem(value: 'en', child: Text('English')),
+                ],
+                onChanged: (value) async {
+                  if (value == null) return;
+                  setState(() => draft = draft.copyWith(appLanguage: value));
+                  await _commit(rescheduleNotifications: true);
+                  await _app.refreshQuote();
+                },
+              ),
+            ),
+            const SizedBox(height: 4),
             ExpansionTile(
               leading: const Icon(Icons.palette_outlined),
               title: const Text('Tema Ayarları'),

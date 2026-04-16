@@ -14,21 +14,27 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
+  bool _tzConfigured = false;
+
+  Future<void> _configureTimezoneSafely() async {
+    if (_tzConfigured) return;
+    tzdata.initializeTimeZones();
+    try {
+      final localTz = await FlutterTimezone.getLocalTimezone();
+      try {
+        tz.setLocalLocation(tz.getLocation(localTz.identifier));
+      } catch (_) {
+        tz.setLocalLocation(tz.getLocation('Etc/UTC'));
+      }
+    } catch (_) {
+      tz.setLocalLocation(tz.getLocation('Etc/UTC'));
+    }
+    _tzConfigured = true;
+  }
 
   Future<void> init() async {
     if (_initialized) return;
-
-    tzdata.initializeTimeZones();
-    final localTz = await FlutterTimezone.getLocalTimezone();
-    // Some environments return identifiers that are not present in the bundled
-    // `timezone` database (e.g. "GMT"). Fall back to UTC to avoid crashes.
-    tz.Location location;
-    try {
-      location = tz.getLocation(localTz.identifier);
-    } catch (_) {
-      location = tz.getLocation('Etc/UTC');
-    }
-    tz.setLocalLocation(location);
+    await _configureTimezoneSafely();
 
     const androidInit =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -73,6 +79,7 @@ class NotificationService {
     required AppSettings settings,
     required List<Quote> quotesForSchedule,
   }) async {
+    await _configureTimezoneSafely();
     // For MVP: pre-schedule next occurrences with already chosen quotes.
     await _plugin.cancelAll();
 
@@ -89,14 +96,25 @@ class NotificationService {
         final quote = quotesForSchedule.isNotEmpty
             ? quotesForSchedule[i % quotesForSchedule.length]
             : quotesForSchedule.first;
-        await _plugin.zonedSchedule(
-          id: i + 1000,
-          title: 'MotivMate',
-          body: '"${quote.text}"',
-          scheduledDate: when,
-          notificationDetails: details,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        );
+        try {
+          await _plugin.zonedSchedule(
+            id: i + 1000,
+            title: 'MotivMate',
+            body: '"${quote.text}"',
+            scheduledDate: when,
+            notificationDetails: details,
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          );
+        } catch (_) {
+          await _plugin.zonedSchedule(
+            id: i + 1000,
+            title: 'MotivMate',
+            body: '"${quote.text}"',
+            scheduledDate: when,
+            notificationDetails: details,
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          );
+        }
       }
       return;
     }
@@ -122,14 +140,25 @@ class NotificationService {
             ? quotesForSchedule[day % quotesForSchedule.length]
             : quotesForSchedule.first;
 
-        await _plugin.zonedSchedule(
-          id: day + 2000,
-          title: 'MotivMate',
-          body: '"${quote.text}"',
-          scheduledDate: date,
-          notificationDetails: details,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        );
+        try {
+          await _plugin.zonedSchedule(
+            id: day + 2000,
+            title: 'MotivMate',
+            body: '"${quote.text}"',
+            scheduledDate: date,
+            notificationDetails: details,
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          );
+        } catch (_) {
+          await _plugin.zonedSchedule(
+            id: day + 2000,
+            title: 'MotivMate',
+            body: '"${quote.text}"',
+            scheduledDate: date,
+            notificationDetails: details,
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          );
+        }
       }
     }
   }
