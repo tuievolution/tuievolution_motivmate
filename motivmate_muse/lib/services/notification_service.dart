@@ -20,7 +20,14 @@ class NotificationService {
 
     tzdata.initializeTimeZones();
     final localTz = await FlutterTimezone.getLocalTimezone();
-    final location = tz.getLocation(localTz.identifier);
+    // Some environments return identifiers that are not present in the bundled
+    // `timezone` database (e.g. "GMT"). Fall back to UTC to avoid crashes.
+    tz.Location location;
+    try {
+      location = tz.getLocation(localTz.identifier);
+    } catch (_) {
+      location = tz.getLocation('Etc/UTC');
+    }
     tz.setLocalLocation(location);
 
     const androidInit =
