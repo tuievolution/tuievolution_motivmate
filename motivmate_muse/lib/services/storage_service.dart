@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_settings.dart';
 
 class StorageService {
-  static const _settingsKey = 'motivmate_settings_v1';
+  static const _settingsKey = 'motivmate_settings_v2'; 
   static const _lastPopupKey = 'motivmate_last_popup_shown_at';
 
   Future<AppSettings> loadSettings() async {

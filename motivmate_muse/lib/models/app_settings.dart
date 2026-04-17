@@ -71,7 +71,7 @@ class AppSettings {
     required this.popupBetweenEndMinutes,
   });
 
-  factory AppSettings.defaults() {
+ factory AppSettings.defaults() {
     return AppSettings(
       themeId: 'amethyst',
       appLanguage: 'tr',
@@ -87,7 +87,7 @@ class AppSettings {
       cardBackgroundColorValue: 0xFFFFFFFB,
       fontSize: 28,
       textColorValue: 0xFF2A1B12,
-      fontFamily: 'Georgia',
+      fontFamily: 'Roboto', // <-- HATA BURADAYDI, 'Roboto' OLARAK DÜZELTİLDİ
       barNotificationsEnabled: false,
       popupOnOpenEnabled: false,
       barTiming: BarTiming.intervalMinutes,
@@ -99,7 +99,6 @@ class AppSettings {
       popupBetweenEndMinutes: 22 * 60,
     );
   }
-
   AppSettings copyWith({
     String? themeId,
     String? appLanguage,
