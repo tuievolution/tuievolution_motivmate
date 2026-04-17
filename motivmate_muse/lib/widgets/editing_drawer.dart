@@ -55,7 +55,7 @@ class _EditingDrawerState extends State<EditingDrawer> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     alignment: Alignment.center,
@@ -183,6 +183,20 @@ class _EditingDrawerState extends State<EditingDrawer> {
             },
           ),
         ),
+        const ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text('Filtre Yoğunluğu'),
+        ),
+        Slider(
+          value: draft.photoFilterIntensity,
+          min: 0,
+          max: 1,
+          divisions: 20,
+          label: '${(draft.photoFilterIntensity * 100).toStringAsFixed(0)}%',
+          onChanged: (v) {
+            _updateDraft(draft.copyWith(photoFilterIntensity: v));
+          },
+        ),
         const SizedBox(height: 20),
       ],
     );
@@ -204,6 +218,22 @@ class _EditingDrawerState extends State<EditingDrawer> {
           },
         ),
         const SizedBox(height: 8),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Kart Arka Plan Rengi'),
+          subtitle: Text('#${draft.cardBackgroundColorValue.toRadixString(16).padLeft(8, '0')}'),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: ColorPicker(
+            pickerColor: Color(draft.cardBackgroundColorValue),
+            onColorChanged: (c) {
+              _updateDraft(draft.copyWith(cardBackgroundColorValue: c.toARGB32()));
+            },
+            enableAlpha: true,
+            displayThumbColor: true,
+          ),
+        ),
         ListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Arka plan opaklığı'),
@@ -245,18 +275,12 @@ class _EditingDrawerState extends State<EditingDrawer> {
             }
           },
           icon: const Icon(Icons.crop_free),
-          label: const Text('Kart Konumu ve Boyutunu Düzenle'),
+          label: const Text('Kart Konumunu Düzenle'),
         ),
         const SizedBox(height: 12),
         Text(
-          'Arayüzle sürükleyip köşelerden tam ölçü verebilirsin.',
-          style: TextStyle(color: Colors.black.withOpacity(0.6)),
-        ),
-        const SizedBox(height: 12),
-        ElevatedButton.icon(
-          onPressed: widget.onDownload,
-          icon: const Icon(Icons.download),
-          label: const Text('İndir'),
+          'Arayüzde sürükleyerek kartın yerini ayarlayabilirsin.',
+          style: TextStyle(color: Colors.black.withValues(alpha: 0.6)),
         ),
         const SizedBox(height: 20),
       ],
@@ -267,15 +291,15 @@ class _EditingDrawerState extends State<EditingDrawer> {
     final currentColor = Color(draft.textColorValue);
     const fonts = <String>[
       'Roboto',
-      'Georgia',
-      'Courier New',
-      'Palatino Linotype',
-      'Impact',
-      'Comic Sans MS',
-      'Trebuchet MS',
-      'Lucida Console',
-      'Tahoma',
-      'Garamond',
+      'Oswald',
+      'Lobster',
+      'Pacifico',
+      'Caveat',
+      'Playfair Display',
+      'Merriweather',
+      'Nunito',
+      'Raleway',
+      'Lora',
     ];
 
     return ListView(
@@ -283,14 +307,14 @@ class _EditingDrawerState extends State<EditingDrawer> {
         ListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Punto (yazı boyutu)'),
-          subtitle: Text('${draft.fontSize.toStringAsFixed(0)}'),
+          subtitle: Text(draft.fontSize.toStringAsFixed(0)),
         ),
         Slider(
           value: draft.fontSize,
           min: 18,
           max: 42,
           divisions: 48,
-          label: '${draft.fontSize.toStringAsFixed(0)}',
+          label: draft.fontSize.toStringAsFixed(0),
           onChanged: (v) => _updateDraft(draft.copyWith(fontSize: v)),
         ),
         const SizedBox(height: 10),
@@ -304,7 +328,7 @@ class _EditingDrawerState extends State<EditingDrawer> {
           child: ColorPicker(
             pickerColor: currentColor,
             onColorChanged: (c) {
-              _updateDraft(draft.copyWith(textColorValue: c.value));
+              _updateDraft(draft.copyWith(textColorValue: c.toARGB32()));
             },
             enableAlpha: false,
             displayThumbColor: true,

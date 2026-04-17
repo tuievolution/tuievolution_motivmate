@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/quote.dart';
 
@@ -116,7 +117,26 @@ class QuoteService {
       );
     }
 
-    final q = quotes[_rng.nextInt(quotes.length)];
+    final prefs = await SharedPreferences.getInstance();
+    List<String> shownList = prefs.getStringList('shownQuotes') ?? [];
+    
+    List<int> unshownIndices = [];
+    for (int i = 0; i < quotes.length; i++) {
+      if (!shownList.contains(i.toString())) {
+        unshownIndices.add(i);
+      }
+    }
+
+    if (unshownIndices.isEmpty) {
+      shownList.clear();
+      unshownIndices = List.generate(quotes.length, (i) => i);
+    }
+
+    final selectedIndex = unshownIndices[_rng.nextInt(unshownIndices.length)];
+    shownList.add(selectedIndex.toString());
+    await prefs.setStringList('shownQuotes', shownList);
+
+    final q = quotes[selectedIndex];
     return Quote(
       textTr: q.textTr,
       authorTr: q.authorTr,

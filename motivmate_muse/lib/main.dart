@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart' as ads;
 import 'package:provider/provider.dart';
 
 import 'app_state.dart';
@@ -12,6 +13,7 @@ import 'services/storage_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await ads.MobileAds.instance.initialize();
 
   final storageService = StorageService();
   final initialSettings = await storageService.loadSettings();

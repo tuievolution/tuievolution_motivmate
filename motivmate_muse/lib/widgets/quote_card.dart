@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class QuoteCard extends StatelessWidget {
   final String text;
@@ -9,9 +10,6 @@ class QuoteCard extends StatelessWidget {
   final double fontSize;
   final String fontFamily;
   final bool showBackground;
-
-  final double width;
-  final double height;
 
   final double borderRadius;
   final double quotePadding;
@@ -25,8 +23,6 @@ class QuoteCard extends StatelessWidget {
     required this.opacity,
     required this.fontSize,
     required this.fontFamily,
-    this.width = 330,
-    this.height = 260,
     this.borderRadius = 16,
     this.quotePadding = 18,
     this.showBackground = true,
@@ -35,19 +31,25 @@ class QuoteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effectiveBackground =
-        cardBackgroundColor.withOpacity(opacity.clamp(0.0, 1.0));
+        cardBackgroundColor.withValues(alpha: opacity.clamp(0.0, 1.0));
+
+    TextStyle textStyle;
+    try {
+      textStyle = GoogleFonts.getFont(fontFamily);
+    } catch (_) {
+      textStyle = const TextStyle(fontFamily: 'Roboto');
+    }
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: Container(
-        width: width,
-        height: height,
+        constraints: const BoxConstraints(maxWidth: 380),
         decoration: showBackground
             ? BoxDecoration(
                 color: effectiveBackground,
                 borderRadius: BorderRadius.circular(borderRadius),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.22),
+                  color: Colors.white.withValues(alpha: 0.22),
                   width: 1,
                 ),
               )
@@ -59,17 +61,16 @@ class QuoteCard extends StatelessWidget {
           children: [
             Icon(
               Icons.format_quote_rounded,
-              color: quoteTextColor.withOpacity(0.35),
+              color: quoteTextColor.withValues(alpha: 0.35),
               size: 22,
             ),
             const SizedBox(height: 8),
             Text(
               '"$text"',
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: textStyle.copyWith(
                 color: quoteTextColor,
                 fontSize: fontSize,
-                fontFamily: fontFamily,
                 fontWeight: FontWeight.w500,
                 height: 1.25,
               ),
@@ -78,10 +79,9 @@ class QuoteCard extends StatelessWidget {
             Text(
               '- $author',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: quoteTextColor.withOpacity(0.75),
+              style: textStyle.copyWith(
+                color: quoteTextColor.withValues(alpha: 0.75),
                 fontSize: (fontSize * 0.26).clamp(10, 18),
-                fontFamily: fontFamily,
                 fontWeight: FontWeight.w500,
               ),
             ),

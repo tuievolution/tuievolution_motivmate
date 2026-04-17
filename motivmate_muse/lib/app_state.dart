@@ -66,7 +66,6 @@ class AppState extends ChangeNotifier {
     settings = newSettings;
     if (languageChanged) {
       quoteService.clearCache();
-      unawaited(refreshQuote());
     }
     notifyListeners();
   }
@@ -158,10 +157,6 @@ class AppState extends ChangeNotifier {
         context: context,
         barrierDismissible: true,
         builder: (ctx) {
-          final preset = themePresets.firstWhere(
-            (e) => e.id == settings.themeId,
-            orElse: () => themePresets.first,
-          );
           return Dialog(
             backgroundColor: Colors.transparent,
             insetPadding: const EdgeInsets.symmetric(horizontal: 18),
@@ -172,11 +167,9 @@ class AppState extends ChangeNotifier {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     QuoteCard(
-                      width: 330,
-                      height: 260,
                       text: quote.text(settings.appLanguage),
                       author: quote.author(settings.appLanguage),
-                      cardBackgroundColor: preset.cardBackgroundColor,
+                      cardBackgroundColor: Color(settings.cardBackgroundColorValue),
                       quoteTextColor: Color(settings.textColorValue),
                       opacity: settings.cardOpacity,
                       fontSize: settings.fontSize,
@@ -212,6 +205,7 @@ class AppState extends ChangeNotifier {
     }());
 
     // Pop-up card when the app comes to foreground.
+    if (!context.mounted) return;
     await _maybeShowPopup(context);
   }
 
