@@ -71,108 +71,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _captureAndSave(BuildContext scaffoldCtx, AppState appState, ThemePreset preset) async {
     try {
-      // Build a dedicated widget tree for the output image to ensure consistency
-      final exportWidget = SizedBox(
-        width: 1080,
-        height: 1920,
-        child: Stack(
-          children: [
-            // Background
-            Positioned.fill(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.asset(
-                    appState.quote.imagePath,
-                    fit: BoxFit.cover,
-                  ),
-                  if (!appState.isOriginalView) ...[
-                    // Filter
-                    if (appState.settings.photoFilterId != 'none')
-                      Opacity(
-                        opacity: appState.settings.photoFilterIntensity,
-                        child: ColorFiltered(
-                          colorFilter: _buildColorFilter(appState.settings.photoFilterId)!,
-                          child: Image.asset(
-                            appState.quote.imagePath,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                    // Blur
-                    if (appState.settings.blurSigma > 0)
-                      Positioned.fill(
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(
-                            sigmaX: appState.settings.blurSigma,
-                            sigmaY: appState.settings.blurSigma,
-                          ),
-                          child: Container(color: Colors.transparent),
-                        ),
-                      ),
-                    // Overlay
-                    Positioned.fill(
-                      child: Container(
-                        color: Colors.black.withValues(
-                          alpha: appState.settings.backgroundOverlayOpacity,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            // Header
-            Positioned(
-              top: 60,
-              left: 0,
-              right: 0,
-              child: Text(
-                'MotivMood',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 48,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 4.0,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      blurRadius: 20,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            // Quote Card
-            if (appState.isQuoteVisible)
-              Positioned(
-                left:   appState.settings.cardLeftN.clamp(0.0, 1.0)   * 1080,
-                top:    appState.settings.cardTopN.clamp(0.0, 1.0)    * 1920,
-                width:  appState.settings.cardWidthN.clamp(0.01, 1.0) * 1080,
-                height: appState.settings.cardHeightN.clamp(0.01, 1.0)* 1920,
-                child: QuoteCard(
-                  text: appState.quote.text(appState.settings.appLanguage),
-                  author: appState.quote.author(appState.settings.appLanguage),
-                  cardBackgroundColor: Color(appState.settings.cardBackgroundColorValue),
-                  quoteTextColor: Color(appState.settings.textColorValue),
-                  opacity: appState.settings.cardOpacity,
-                  fontSize: appState.settings.fontSize * 1.5, // Scale for high res
-                  fontFamily: appState.settings.fontFamily,
-                  showBackground: appState.settings.showCardBackground,
-                  fillContainer: true,
-                ),
-              ),
-          ],
-        ),
+      final bytes = await _screenshotController.capture(
+        delay: const Duration(milliseconds: 100),
+        pixelRatio: 3.0, // High quality, crisp text
       );
 
-      final bytes = await _screenshotController.captureFromWidget(
-        exportWidget,
-        pixelRatio: 1.0,
-        delay: const Duration(milliseconds: 100),
-      );
+      if (bytes == null) {
+        throw Exception("Görüntü oluşturulamadı.");
+      }
 
       final hasAccess = await Gal.requestAccess(toAlbum: true);
       if (hasAccess) {

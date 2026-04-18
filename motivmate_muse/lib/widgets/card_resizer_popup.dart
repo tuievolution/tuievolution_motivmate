@@ -133,43 +133,51 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
                         top: top,
                         width: width,
                         height: height,
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onPanUpdate: (d) => _onBodyDrag(d, cW, cH),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: Colors.white54,
-                                width: 1.5,
+                        child: Stack(
+                          children: [
+                            // Card visual
+                            Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Colors.white54,
+                                  width: 1.5,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
                               ),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(15),
-                              child: OverflowBox(
-                                maxWidth: double.infinity,
-                                maxHeight: double.infinity,
-                                alignment: Alignment.topCenter,
-                                child: QuoteCard(
-                                  text: widget.appState.quote
-                                      .text(widget.settings.appLanguage),
-                                  author: widget.appState.quote
-                                      .author(widget.settings.appLanguage),
-                                  cardBackgroundColor: Color(
-                                      widget.settings.cardBackgroundColorValue),
-                                  quoteTextColor:
-                                      Color(widget.settings.textColorValue),
-                                  opacity: widget.settings.cardOpacity,
-                                  fontSize: widget.settings.fontSize,
-                                  fontFamily: widget.settings.fontFamily,
-                                  showBackground:
-                                      widget.settings.showCardBackground,
-                                  // let it fill the container
-                                  fillContainer: true,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(15),
+                                child: OverflowBox(
+                                  maxWidth: double.infinity,
+                                  maxHeight: double.infinity,
+                                  alignment: Alignment.topCenter,
+                                  child: QuoteCard(
+                                    text: widget.appState.quote
+                                        .text(widget.settings.appLanguage),
+                                    author: widget.appState.quote
+                                        .author(widget.settings.appLanguage),
+                                    cardBackgroundColor: Color(
+                                        widget.settings.cardBackgroundColorValue),
+                                    quoteTextColor:
+                                        Color(widget.settings.textColorValue),
+                                    opacity: widget.settings.cardOpacity,
+                                    fontSize: widget.settings.fontSize,
+                                    fontFamily: widget.settings.fontFamily,
+                                    showBackground:
+                                        widget.settings.showCardBackground,
+                                    // let it fill the container
+                                    fillContainer: true,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
+                            // Hit snatcher layer to capture pure drags
+                            Positioned.fill(
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onPanUpdate: (d) => _onBodyDrag(d, cW, cH),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
 
