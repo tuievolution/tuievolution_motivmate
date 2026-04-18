@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
@@ -28,9 +29,8 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
   // Normalised position of the card's top-left corner (0..1)
   late double _leftN;
   late double _topN;
-  // Normalised size (0..1 fraction of canvas)
+  // Normalised width fraction
   late double _widthN;
-  late double _heightN;
 
   // Minimum card size in logical pixels (prevents collapsing to zero)
   static const double _minPx = 80;
@@ -41,16 +41,43 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
     _leftN  = widget.settings.cardLeftN.clamp(0.0, 1.0);
     _topN   = widget.settings.cardTopN.clamp(0.0, 1.0);
     _widthN = widget.settings.cardWidthN.clamp(0.01, 1.0);
-    _heightN = widget.settings.cardHeightN.clamp(0.01, 1.0);
   }
 
   // ── helpers ─────────────────────────────────────────────────────────────
+  ColorFilter? _buildColorFilter(String id) {
+    switch (id) {
+      case 'sepia':
+        return const ColorFilter.mode(Color(0xFF7A4D2A), BlendMode.color);
+      case 'mono':
+        return ColorFilter.matrix(const <double>[
+          0.2126, 0.7152, 0.0722, 0, 0,
+          0.2126, 0.7152, 0.0722, 0, 0,
+          0.2126, 0.7152, 0.0722, 0, 0,
+          0, 0, 0, 1, 0,
+        ]);
+      case 'vintage':
+        return const ColorFilter.mode(Color(0xFFB08968), BlendMode.softLight);
+      case 'warm':
+        return const ColorFilter.mode(Color(0xFFFF9800), BlendMode.softLight);
+      case 'cool':
+        return const ColorFilter.mode(Color(0xFF4264FB), BlendMode.softLight);
+      case 'cinematic':
+        return const ColorFilter.mode(Color(0xFF1B1B1B), BlendMode.darken);
+      case 'rosy':
+        return const ColorFilter.mode(Color(0xFFE91E63), BlendMode.softLight);
+      case 'faded':
+        return const ColorFilter.mode(Color(0xFFCCCCCC), BlendMode.lighten);
+      case 'none':
+      default:
+        return null;
+    }
+  }
+
   void _clampAll(double cW, double cH) {
-    // keep card within canvas
+    // keep card horizontally within canvas
     _leftN = _leftN.clamp(0.0, (1.0 - _widthN).clamp(0.0, 1.0));
-    _topN  = _topN.clamp(0.0,  (1.0 - _heightN).clamp(0.0, 1.0));
+    _topN  = _topN.clamp(0.0, 1.0);
     _widthN  = _widthN.clamp(_minPx / cW, 1.0);
-    _heightN = _heightN.clamp(_minPx / cH, 1.0);
   }
 
   // ── drag body → move ─────────────────────────────────────────────────────
@@ -62,29 +89,21 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
     });
   }
 
-  // ── drag handles → resize ─────────────────────────────────────────────────
+  // ── drag handles → resize width ──────────────────────────────────────────
   void _onHandleDrag({
     required DragUpdateDetails d,
     required double cW,
     required double cH,
     bool left = false,
     bool right = false,
-    bool top = false,
-    bool bottom = false,
   }) {
     setState(() {
       final dx = d.delta.dx / cW;
-      final dy = d.delta.dy / cH;
 
       if (right)  _widthN += dx;
-      if (bottom) _heightN += dy;
       if (left) {
         _widthN -= dx;
         _leftN  += dx;
-      }
-      if (top) {
-        _heightN -= dy;
-        _topN    += dy;
       }
       _clampAll(cW, cH);
     });
@@ -117,22 +136,60 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
                   final left   = _leftN   * cW;
                   final top    = _topN    * cH;
                   final width  = _widthN  * cW;
-                  final height = _heightN * cH;
 
                   return Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      // ── transparent tap-to-move background ──────────────
+                      // ── 1) Background Image exactly like Home Screen ─────
                       Positioned.fill(
-                        child: Container(color: Colors.transparent),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.asset(
+                              widget.appState.quote.imagePath,
+                              fit: BoxFit.cover,
+                            ),
+                            if (!widget.appState.isOriginalView) ...[
+                              if (widget.settings.photoFilterId != 'none')
+                                Opacity(
+                                  opacity: widget.settings.photoFilterIntensity,
+                                  child: ColorFiltered(
+                                    colorFilter: _buildColorFilter(widget.settings.photoFilterId)!,
+                                    child: Image.asset(
+                                      widget.appState.quote.imagePath,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                              if (widget.settings.blurSigma > 0)
+                                Positioned.fill(
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(
+                                      sigmaX: widget.settings.blurSigma,
+                                      sigmaY: widget.settings.blurSigma,
+                                    ),
+                                    child: Container(color: Colors.transparent),
+                                  ),
+                                ),
+                              Positioned.fill(
+                                child: Container(
+                                  color: Colors.black.withValues(
+                                    alpha: widget.appState.isOriginalView
+                                        ? 0
+                                        : widget.settings.backgroundOverlayOpacity,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
 
-                      // ── card body (draggable) ────────────────────────────
+                      // ── 2) card body (draggable) ────────────────────────────
                       Positioned(
                         left: left,
                         top: top,
                         width: width,
-                        height: height,
                         child: Stack(
                           children: [
                             // Card visual
@@ -146,27 +203,22 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(15),
-                                child: OverflowBox(
-                                  maxWidth: double.infinity,
-                                  maxHeight: double.infinity,
-                                  alignment: Alignment.topCenter,
-                                  child: QuoteCard(
-                                    text: widget.appState.quote
-                                        .text(widget.settings.appLanguage),
-                                    author: widget.appState.quote
-                                        .author(widget.settings.appLanguage),
-                                    cardBackgroundColor: Color(
-                                        widget.settings.cardBackgroundColorValue),
-                                    quoteTextColor:
-                                        Color(widget.settings.textColorValue),
-                                    opacity: widget.settings.cardOpacity,
-                                    fontSize: widget.settings.fontSize,
-                                    fontFamily: widget.settings.fontFamily,
-                                    showBackground:
-                                        widget.settings.showCardBackground,
-                                    // let it fill the container
-                                    fillContainer: true,
-                                  ),
+                                child: QuoteCard(
+                                  text: widget.appState.quote
+                                      .text(widget.settings.appLanguage),
+                                  author: widget.appState.quote
+                                      .author(widget.settings.appLanguage),
+                                  cardBackgroundColor: Color(
+                                      widget.settings.cardBackgroundColorValue),
+                                  quoteTextColor:
+                                      Color(widget.settings.textColorValue),
+                                  opacity: widget.settings.cardOpacity,
+                                  fontSize: widget.settings.fontSize,
+                                  fontFamily: widget.settings.fontFamily,
+                                  showBackground:
+                                      widget.settings.showCardBackground,
+                                  // let it fill the container
+                                  fillContainer: true,
                                 ),
                               ),
                             ),
@@ -181,49 +233,19 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
                         ),
                       ),
 
-                      // ── 8 resize handles ────────────────────────────────
-                      // corners
+                      // ── 3) Width resize handles ─────────────────────
+                      // We place them at a reasonably fixed offset from the top
+                      // since height is organic.
                       _handle(
-                        left: left - 10, top: top - 10,
-                        cursor: SystemMouseCursors.resizeUpLeftDownRight,
-                        onDrag: (d) => _onHandleDrag(d: d, cW: cW, cH: cH, left: true,  top: true),
-                      ),
-                      _handle(
-                        left: left + width - 6, top: top - 10,
-                        cursor: SystemMouseCursors.resizeUpRightDownLeft,
-                        onDrag: (d) => _onHandleDrag(d: d, cW: cW, cH: cH, right: true, top: true),
-                      ),
-                      _handle(
-                        left: left - 10, top: top + height - 6,
-                        cursor: SystemMouseCursors.resizeUpRightDownLeft,
-                        onDrag: (d) => _onHandleDrag(d: d, cW: cW, cH: cH, left: true,  bottom: true),
-                      ),
-                      _handle(
-                        left: left + width - 6, top: top + height - 6,
-                        cursor: SystemMouseCursors.resizeUpLeftDownRight,
-                        onDrag: (d) => _onHandleDrag(d: d, cW: cW, cH: cH, right: true, bottom: true),
-                      ),
-                      // edges
-                      _handle(
-                        left: left + width / 2 - 10, top: top - 10,
-                        wide: true,
-                        cursor: SystemMouseCursors.resizeRow,
-                        onDrag: (d) => _onHandleDrag(d: d, cW: cW, cH: cH, top: true),
-                      ),
-                      _handle(
-                        left: left + width / 2 - 10, top: top + height - 6,
-                        wide: true,
-                        cursor: SystemMouseCursors.resizeRow,
-                        onDrag: (d) => _onHandleDrag(d: d, cW: cW, cH: cH, bottom: true),
-                      ),
-                      _handle(
-                        left: left - 10, top: top + height / 2 - 10,
+                        left: left - 10,
+                        top: top + 40, 
                         tall: true,
                         cursor: SystemMouseCursors.resizeColumn,
                         onDrag: (d) => _onHandleDrag(d: d, cW: cW, cH: cH, left: true),
                       ),
                       _handle(
-                        left: left + width - 6, top: top + height / 2 - 10,
+                        left: left + width - 6,
+                        top: top + 40,
                         tall: true,
                         cursor: SystemMouseCursors.resizeColumn,
                         onDrag: (d) => _onHandleDrag(d: d, cW: cW, cH: cH, right: true),
@@ -269,7 +291,7 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
                 cardLeftN:  _leftN,
                 cardTopN:   _topN,
                 cardWidthN: _widthN,
-                cardHeightN: _heightN,
+                // Height is naturally wrapped now!
               );
               Navigator.of(context).pop(updated);
             },
@@ -287,7 +309,6 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
                 _leftN   = d.cardLeftN;
                 _topN    = d.cardTopN;
                 _widthN  = d.cardWidthN;
-                _heightN = d.cardHeightN;
               });
             },
             child: const Text('Sıfırla', style: TextStyle(fontSize: 13)),
@@ -303,11 +324,10 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
     required double top,
     required MouseCursor cursor,
     required void Function(DragUpdateDetails) onDrag,
-    bool wide = false,
     bool tall = false,
   }) {
-    final w = wide ? 24.0 : 16.0;
-    final h = tall ? 24.0 : 16.0;
+    final w = 16.0;
+    final h = tall ? 32.0 : 16.0;
     return Positioned(
       left: left,
       top: top,
@@ -321,8 +341,11 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(wide || tall ? 3 : 8),
+              borderRadius: BorderRadius.circular(4),
               border: Border.all(color: Colors.black38, width: 1),
+            ),
+            child: const Center(
+              child: Icon(Icons.drag_indicator, size: 8, color: Colors.black54),
             ),
           ),
         ),

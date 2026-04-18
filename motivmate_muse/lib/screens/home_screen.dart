@@ -211,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 left: appState.settings.cardLeftN.clamp(0.0, 1.0) * constraints.maxWidth,
                                 top:  appState.settings.cardTopN.clamp(0.0, 1.0)  * constraints.maxHeight,
                                 width:  appState.settings.cardWidthN.clamp(0.01, 1.0) * constraints.maxWidth,
-                                height: appState.settings.cardHeightN.clamp(0.01, 1.0) * constraints.maxHeight,
+                                // height gracefully omitted so children determine height naturally
                                 child: QuoteCard(
                                   text: appState.quote.text(appState.settings.appLanguage),
                                   author: appState.quote.author(appState.settings.appLanguage),

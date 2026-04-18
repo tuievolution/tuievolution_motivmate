@@ -93,10 +93,9 @@ class QuoteCard extends StatelessWidget {
         : null;
 
     if (fillContainer) {
-      // Fills whatever parent SizedBox/Positioned gives it
+      // Fills parent width statically, wraps content vertically
       return Container(
         width: double.infinity,
-        height: double.infinity,
         decoration: decoration,
         padding: EdgeInsets.all(quotePadding),
         child: content,
