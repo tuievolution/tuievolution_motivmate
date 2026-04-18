@@ -31,7 +31,7 @@ class AppState extends ChangeNotifier {
     required Quote initialQuote,
   })  : settings = initialSettings,
         quote = initialQuote,
-        isQuoteVisible = false; // Always start with heart closed on app launch
+        isQuoteVisible = true; // Always start with heart opened on app launch
 
   Future<void> initialize() async {
     _lastPopupShownAt = await storageService.loadLastPopupShownAt();
