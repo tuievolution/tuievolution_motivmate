@@ -89,7 +89,9 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                       if (value == null) return;
                       setState(() => draft = draft.copyWith(appLanguage: value));
                       await _commit(rescheduleNotifications: true);
-                      await _app.refreshQuote();
+                      // No refreshQuote() — the current quote already has both
+                      // Turkish and English text; changing the language setting
+                      // is enough to switch the displayed language.
                     },
                   ),
                 ),

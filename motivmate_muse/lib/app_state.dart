@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import 'models/app_settings.dart';
 import 'models/quote.dart';
-import 'models/theme_presets.dart';
 import 'services/notification_service.dart';
 import 'services/quote_service.dart';
 import 'services/storage_service.dart';
@@ -32,7 +31,7 @@ class AppState extends ChangeNotifier {
     required Quote initialQuote,
   })  : settings = initialSettings,
         quote = initialQuote,
-        isQuoteVisible = initialSettings.showCard;
+        isQuoteVisible = false; // Always start with heart closed on app launch
 
   Future<void> initialize() async {
     _lastPopupShownAt = await storageService.loadLastPopupShownAt();
@@ -81,7 +80,8 @@ class AppState extends ChangeNotifier {
 
   Future<void> rescheduleBarNotifications() async {
     if (!settings.barNotificationsEnabled) {
-      // We rely on cancelAll inside NotificationService; calling schedule will cancel.
+      // Cancel all pending notifications when disabled.
+      await notificationService.cancelAll();
       return;
     }
 

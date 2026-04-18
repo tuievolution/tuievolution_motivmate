@@ -113,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     // Overlay
                     Positioned.fill(
                       child: Container(
-                        color: preset.overlayColor.withValues(
+                        color: Colors.black.withValues(
                           alpha: appState.settings.backgroundOverlayOpacity,
                         ),
                       ),
@@ -250,7 +250,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     Positioned.fill(
                       child: Container(
-                color: preset.overlayColor.withValues(
+                color: Colors.black.withValues(
                           alpha: appState.isOriginalView
                               ? 0
                               : appState.settings.backgroundOverlayOpacity,

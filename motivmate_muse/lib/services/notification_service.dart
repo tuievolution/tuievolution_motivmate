@@ -20,6 +20,7 @@ class NotificationService {
     if (_tzConfigured) return;
     tzdata.initializeTimeZones();
     try {
+      // getLocalTimezone() returns TimezoneInfo in v5.0.2; use .identifier for the IANA string.
       final localTz = await FlutterTimezone.getLocalTimezone();
       try {
         tz.setLocalLocation(tz.getLocation(localTz.identifier));
@@ -51,6 +52,9 @@ class NotificationService {
             AndroidFlutterLocalNotificationsPlugin>();
     await androidPlugin?.requestNotificationsPermission();
 
+    // Android 12+ needs exact alarm permission for zonedSchedule.
+    await androidPlugin?.requestExactAlarmsPermission();
+
     _initialized = true;
   }
 
@@ -65,6 +69,10 @@ class NotificationService {
 
     const iosDetails = DarwinNotificationDetails();
     return const NotificationDetails(android: androidDetails, iOS: iosDetails);
+  }
+
+  Future<void> cancelAll() async {
+    await _plugin.cancelAll();
   }
 
   Future<void> showBarNotification(Quote quote, String language) async {
