@@ -38,6 +38,7 @@ class _EditingDrawerState extends State<EditingDrawer> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final preset = themePresets
         .firstWhere((e) => e.id == draft.themeId, orElse: () => themePresets.first);
 
@@ -55,17 +56,21 @@ class _EditingDrawerState extends State<EditingDrawer> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.05),
+                      color: cs.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     alignment: Alignment.center,
-                    child: const Icon(Icons.edit),
+                    child: Icon(Icons.edit, color: cs.primary),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Düzenle',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: cs.onSurface,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -73,25 +78,28 @@ class _EditingDrawerState extends State<EditingDrawer> {
                       widget.appState.updateSettingsTemporary(original);
                       if (context.mounted) Navigator.of(context).pop();
                     },
-                    icon: const Icon(Icons.close),
+                    icon: Icon(Icons.close, color: cs.onSurface),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              const TabBar(
-                tabs: [
+              TabBar(
+                tabs: const [
                   Tab(text: 'Fotoğraf'),
                   Tab(text: 'Kart'),
                   Tab(text: 'Yazı'),
                 ],
+                labelColor: cs.primary,
+                unselectedLabelColor: cs.onSurface.withValues(alpha: 0.6),
+                indicatorColor: cs.primary,
               ),
               const SizedBox(height: 12),
               Expanded(
                 child: TabBarView(
                   children: [
                     _buildPhotoTab(preset),
-                    _buildCardTab(),
-                    _buildTextTab(),
+                    _buildCardTab(cs),
+                    _buildTextTab(cs),
                   ],
                 ),
               ),
@@ -100,6 +108,10 @@ class _EditingDrawerState extends State<EditingDrawer> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: cs.primary,
+                        side: BorderSide(color: cs.primary),
+                      ),
                       onPressed: () async {
                         widget.appState.updateSettingsTemporary(original);
                         if (context.mounted) Navigator.of(context).pop();
@@ -110,6 +122,10 @@ class _EditingDrawerState extends State<EditingDrawer> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: cs.primary,
+                        foregroundColor: cs.onPrimary,
+                      ),
                       onPressed: () async {
                         draft = draft.copyWith(showCard: widget.appState.isQuoteVisible);
                         widget.appState.updateSettingsTemporary(draft);
@@ -202,38 +218,35 @@ class _EditingDrawerState extends State<EditingDrawer> {
     );
   }
 
-  Widget _buildCardTab() {
+  Widget _buildCardTab(ColorScheme cs) {
     return ListView(
       children: [
-        // Single toggle: OFF = hide card background, text stays visible
+        // ── Card background toggle ──────────────────────────────────────
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Kart gösterilsin'),
           subtitle: const Text('Kapalıyken yazı görünür kalır'),
+          activeThumbColor: cs.primary,
           value: draft.showCardBackground,
           onChanged: (v) {
             _updateDraft(draft.copyWith(showCardBackground: v));
-            // Mirror to appState so live preview updates
             widget.appState.setQuoteVisibility(true);
           },
         ),
-        const SizedBox(height: 8),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Kart Arka Plan Rengi'),
-          subtitle: Text('#${draft.cardBackgroundColorValue.toRadixString(16).padLeft(8, '0')}'),
+        const SizedBox(height: 6),
+
+        // ── Card background COLOR — collapsible ─────────────────────────
+        _colorExpansionTile(
+          cs: cs,
+          title: 'Kart Arka Plan Rengi',
+          hexValue: draft.cardBackgroundColorValue,
+          pickerColor: Color(draft.cardBackgroundColorValue),
+          enableAlpha: true,
+          onColorChanged: (c) =>
+              _updateDraft(draft.copyWith(cardBackgroundColorValue: c.toARGB32())),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: ColorPicker(
-            pickerColor: Color(draft.cardBackgroundColorValue),
-            onColorChanged: (c) {
-              _updateDraft(draft.copyWith(cardBackgroundColorValue: c.toARGB32()));
-            },
-            enableAlpha: true,
-            displayThumbColor: true,
-          ),
-        ),
+
+        // ── Overlay opacity ─────────────────────────────────────────────
         ListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Arka plan opaklığı'),
@@ -246,6 +259,8 @@ class _EditingDrawerState extends State<EditingDrawer> {
           divisions: 100,
           onChanged: (v) => _updateDraft(draft.copyWith(backgroundOverlayOpacity: v)),
         ),
+
+        // ── Card opacity ────────────────────────────────────────────────
         ListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Kart opaklığı'),
@@ -259,7 +274,13 @@ class _EditingDrawerState extends State<EditingDrawer> {
           onChanged: (v) => _updateDraft(draft.copyWith(cardOpacity: v)),
         ),
         const SizedBox(height: 12),
+
+        // ── Resize button ────────────────────────────────────────────────
         ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: cs.primary,
+            foregroundColor: cs.onPrimary,
+          ),
           onPressed: () async {
             final updated = await Navigator.of(context).push<AppSettings>(
               MaterialPageRoute(
@@ -277,18 +298,17 @@ class _EditingDrawerState extends State<EditingDrawer> {
           icon: const Icon(Icons.crop_free),
           label: const Text('Kart Konumunu Düzenle'),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         Text(
           'Arayüzde sürükleyerek kartın yerini ayarlayabilirsin.',
-          style: TextStyle(color: Colors.black.withValues(alpha: 0.6)),
+          style: TextStyle(color: cs.onSurface.withValues(alpha: 0.55), fontSize: 12),
         ),
         const SizedBox(height: 20),
       ],
     );
   }
 
-  Widget _buildTextTab() {
-    final currentColor = Color(draft.textColorValue);
+  Widget _buildTextTab(ColorScheme cs) {
     const fonts = <String>[
       'Roboto',
       'Oswald',
@@ -318,26 +338,22 @@ class _EditingDrawerState extends State<EditingDrawer> {
           onChanged: (v) => _updateDraft(draft.copyWith(fontSize: v)),
         ),
         const SizedBox(height: 10),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Yazı rengi'),
-          subtitle: Text('#${draft.textColorValue.toRadixString(16).padLeft(8, '0')}'),
+
+        // ── Text COLOR — collapsible ────────────────────────────────────
+        _colorExpansionTile(
+          cs: cs,
+          title: 'Yazı rengi',
+          hexValue: draft.textColorValue,
+          pickerColor: Color(draft.textColorValue),
+          enableAlpha: false,
+          onColorChanged: (c) =>
+              _updateDraft(draft.copyWith(textColorValue: c.toARGB32())),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: ColorPicker(
-            pickerColor: currentColor,
-            onColorChanged: (c) {
-              _updateDraft(draft.copyWith(textColorValue: c.toARGB32()));
-            },
-            enableAlpha: false,
-            displayThumbColor: true,
-          ),
-        ),
+
         const SizedBox(height: 10),
-        ListTile(
+        const ListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Font'),
+          title: Text('Font'),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -361,5 +377,48 @@ class _EditingDrawerState extends State<EditingDrawer> {
       ],
     );
   }
-}
 
+  // ── Reusable collapsible color-picker tile ────────────────────────────────
+  Widget _colorExpansionTile({
+    required ColorScheme cs,
+    required String title,
+    required int hexValue,
+    required Color pickerColor,
+    required bool enableAlpha,
+    required void Function(Color) onColorChanged,
+  }) {
+    final hexStr = '#${hexValue.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+    // Preview swatch
+    final swatch = Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        color: pickerColor,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: cs.outline.withValues(alpha: 0.4)),
+      ),
+    );
+
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: EdgeInsets.zero,
+      // Collapsed by default so user doesn't accidentally change colour
+      // while scrolling
+      initiallyExpanded: false,
+      leading: swatch,
+      title: Text(title),
+      subtitle: Text(hexStr, style: TextStyle(fontSize: 11, color: cs.onSurface.withValues(alpha: 0.5))),
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+          child: ColorPicker(
+            pickerColor: pickerColor,
+            onColorChanged: onColorChanged,
+            enableAlpha: enableAlpha,
+            displayThumbColor: true,
+          ),
+        ),
+      ],
+    );
+  }
+}

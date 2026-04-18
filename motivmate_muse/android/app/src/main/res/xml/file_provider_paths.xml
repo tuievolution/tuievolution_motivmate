@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FileProvider paths for the 'gal' plugin used to save screenshots to the
+  device gallery. The <external-files-path> entry lets the plugin write
+  temporary files to the app's external cache without requiring
+  WRITE_EXTERNAL_STORAGE at runtime on Android 10+.
+-->
+<paths>
+    <external-files-path name="external_files" path="." />
+    <cache-path name="cache" path="." />
+    <external-cache-path name="external_cache" path="." />
+</paths>

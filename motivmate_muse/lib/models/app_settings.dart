@@ -23,8 +23,10 @@ class AppSettings {
   final bool showCardBackground;
   final double backgroundOverlayOpacity; // overlay over background image
   final double cardOpacity; // card container opacity
-  final double cardLeftN; // 0..1
-  final double cardTopN; // 0..1
+  final double cardLeftN; // 0..1 (left edge position, fraction of screen width)
+  final double cardTopN; // 0..1 (top edge position, fraction of screen height)
+  final double cardWidthN; // 0..1 (card width as fraction of screen width)
+  final double cardHeightN; // 0..1 (card height as fraction of screen height)
   final int cardBackgroundColorValue;
 
   // Text edits
@@ -56,6 +58,8 @@ class AppSettings {
     required this.cardOpacity,
     required this.cardLeftN,
     required this.cardTopN,
+    required this.cardWidthN,
+    required this.cardHeightN,
     required this.cardBackgroundColorValue,
     required this.fontSize,
     required this.textColorValue,
@@ -71,7 +75,7 @@ class AppSettings {
     required this.popupBetweenEndMinutes,
   });
 
- factory AppSettings.defaults() {
+  factory AppSettings.defaults() {
     return AppSettings(
       themeId: 'amethyst',
       appLanguage: 'tr',
@@ -82,12 +86,14 @@ class AppSettings {
       showCardBackground: true,
       backgroundOverlayOpacity: 0.35,
       cardOpacity: 0.92,
-      cardLeftN: 0.1,
-      cardTopN: 0.22,
+      cardLeftN: 0.05,  // 5% from left
+      cardTopN: 0.20,   // 20% from top
+      cardWidthN: 0.88, // 88% of screen width — wide enough for any quote
+      cardHeightN: 0.38, // 38% of screen height — tall enough for multi-line quotes
       cardBackgroundColorValue: 0xFFFFFFFB,
-      fontSize: 28,
+      fontSize: 22,
       textColorValue: 0xFF2A1B12,
-      fontFamily: 'Roboto', // <-- HATA BURADAYDI, 'Roboto' OLARAK DÜZELTİLDİ
+      fontFamily: 'Roboto',
       barNotificationsEnabled: false,
       popupOnOpenEnabled: false,
       barTiming: BarTiming.intervalMinutes,
@@ -99,6 +105,7 @@ class AppSettings {
       popupBetweenEndMinutes: 22 * 60,
     );
   }
+
   AppSettings copyWith({
     String? themeId,
     String? appLanguage,
@@ -111,6 +118,8 @@ class AppSettings {
     double? cardOpacity,
     double? cardLeftN,
     double? cardTopN,
+    double? cardWidthN,
+    double? cardHeightN,
     int? cardBackgroundColorValue,
     double? fontSize,
     int? textColorValue,
@@ -138,7 +147,10 @@ class AppSettings {
       cardOpacity: cardOpacity ?? this.cardOpacity,
       cardLeftN: cardLeftN ?? this.cardLeftN,
       cardTopN: cardTopN ?? this.cardTopN,
-      cardBackgroundColorValue: cardBackgroundColorValue ?? this.cardBackgroundColorValue,
+      cardWidthN: cardWidthN ?? this.cardWidthN,
+      cardHeightN: cardHeightN ?? this.cardHeightN,
+      cardBackgroundColorValue:
+          cardBackgroundColorValue ?? this.cardBackgroundColorValue,
       fontSize: fontSize ?? this.fontSize,
       textColorValue: textColorValue ?? this.textColorValue,
       fontFamily: fontFamily ?? this.fontFamily,
@@ -159,8 +171,7 @@ class AppSettings {
   }
 
   static int _popupTimingToJson(PopupTiming t) => t.index;
-  static PopupTiming _popupTimingFromJson(int v) =>
-      PopupTiming.values[v];
+  static PopupTiming _popupTimingFromJson(int v) => PopupTiming.values[v];
   static int _barTimingToJson(BarTiming t) => t.index;
   static BarTiming _barTimingFromJson(int v) => BarTiming.values[v];
 
@@ -176,6 +187,8 @@ class AppSettings {
         'cardOpacity': cardOpacity,
         'cardLeftN': cardLeftN,
         'cardTopN': cardTopN,
+        'cardWidthN': cardWidthN,
+        'cardHeightN': cardHeightN,
         'cardBackgroundColorValue': cardBackgroundColorValue,
         'fontSize': fontSize,
         'textColorValue': textColorValue,
@@ -199,24 +212,37 @@ class AppSettings {
       blurSigma: (json['blurSigma'] as num?)?.toDouble() ?? defaults.blurSigma,
       photoFilterId:
           json['photoFilterId'] as String? ?? defaults.photoFilterId,
-      photoFilterIntensity: (json['photoFilterIntensity'] as num?)?.toDouble() ?? defaults.photoFilterIntensity,
+      photoFilterIntensity:
+          (json['photoFilterIntensity'] as num?)?.toDouble() ??
+              defaults.photoFilterIntensity,
       showCard: json['showCard'] as bool? ?? defaults.showCard,
       showCardBackground:
           json['showCardBackground'] as bool? ?? defaults.showCardBackground,
-      backgroundOverlayOpacity: (json['backgroundOverlayOpacity'] as num?)
-              ?.toDouble() ??
-          defaults.backgroundOverlayOpacity,
-      cardOpacity: (json['cardOpacity'] as num?)?.toDouble() ??
-          defaults.cardOpacity,
-      cardLeftN: (json['cardLeftN'] as num?)?.toDouble() ??
-          defaults.cardLeftN,
+      backgroundOverlayOpacity:
+          (json['backgroundOverlayOpacity'] as num?)?.toDouble() ??
+              defaults.backgroundOverlayOpacity,
+      cardOpacity:
+          (json['cardOpacity'] as num?)?.toDouble() ?? defaults.cardOpacity,
+      cardLeftN:
+          (json['cardLeftN'] as num?)?.toDouble() ?? defaults.cardLeftN,
       cardTopN: (json['cardTopN'] as num?)?.toDouble() ?? defaults.cardTopN,
-      cardBackgroundColorValue: json['cardBackgroundColorValue'] as int? ?? defaults.cardBackgroundColorValue,
-      fontSize: (json['fontSize'] as num?)?.toDouble() ?? defaults.fontSize,
-      textColorValue: json['textColorValue'] as int? ?? defaults.textColorValue,
+      // cardWidthN / cardHeightN: fall back to defaults for old saves that
+      // don't have these keys yet (backwards compatible).
+      cardWidthN:
+          (json['cardWidthN'] as num?)?.toDouble() ?? defaults.cardWidthN,
+      cardHeightN:
+          (json['cardHeightN'] as num?)?.toDouble() ?? defaults.cardHeightN,
+      cardBackgroundColorValue:
+          json['cardBackgroundColorValue'] as int? ??
+              defaults.cardBackgroundColorValue,
+      fontSize:
+          (json['fontSize'] as num?)?.toDouble() ?? defaults.fontSize,
+      textColorValue:
+          json['textColorValue'] as int? ?? defaults.textColorValue,
       fontFamily: json['fontFamily'] as String? ?? defaults.fontFamily,
       barNotificationsEnabled:
-          json['barNotificationsEnabled'] as bool? ?? defaults.barNotificationsEnabled,
+          json['barNotificationsEnabled'] as bool? ??
+              defaults.barNotificationsEnabled,
       popupOnOpenEnabled:
           json['popupOnOpenEnabled'] as bool? ?? defaults.popupOnOpenEnabled,
       barTiming: json['barTiming'] != null
@@ -234,9 +260,8 @@ class AppSettings {
       popupBetweenStartMinutes:
           json['popupBetweenStartMinutes'] as int? ??
               defaults.popupBetweenStartMinutes,
-      popupBetweenEndMinutes:
-          json['popupBetweenEndMinutes'] as int? ?? defaults.popupBetweenEndMinutes,
+      popupBetweenEndMinutes: json['popupBetweenEndMinutes'] as int? ??
+          defaults.popupBetweenEndMinutes,
     );
   }
 }
-

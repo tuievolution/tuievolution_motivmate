@@ -147,22 +147,21 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             // Quote Card
             if (appState.isQuoteVisible)
-              Positioned.fill(
-                child: Align(
-                  alignment: Alignment(
-                    (appState.settings.cardLeftN.clamp(0.0, 1.0) * 2) - 1,
-                    (appState.settings.cardTopN.clamp(0.0, 1.0) * 2) - 1,
-                  ),
-                  child: QuoteCard(
-                    text: appState.quote.text(appState.settings.appLanguage),
-                    author: appState.quote.author(appState.settings.appLanguage),
-                    cardBackgroundColor: Color(appState.settings.cardBackgroundColorValue),
-                    quoteTextColor: Color(appState.settings.textColorValue),
-                    opacity: appState.settings.cardOpacity,
-                    fontSize: appState.settings.fontSize * 1.5, // Scale for high res
-                    fontFamily: appState.settings.fontFamily,
-                    showBackground: appState.settings.showCardBackground,
-                  ),
+              Positioned(
+                left:   appState.settings.cardLeftN.clamp(0.0, 1.0)   * 1080,
+                top:    appState.settings.cardTopN.clamp(0.0, 1.0)    * 1920,
+                width:  appState.settings.cardWidthN.clamp(0.01, 1.0) * 1080,
+                height: appState.settings.cardHeightN.clamp(0.01, 1.0)* 1920,
+                child: QuoteCard(
+                  text: appState.quote.text(appState.settings.appLanguage),
+                  author: appState.quote.author(appState.settings.appLanguage),
+                  cardBackgroundColor: Color(appState.settings.cardBackgroundColorValue),
+                  quoteTextColor: Color(appState.settings.textColorValue),
+                  opacity: appState.settings.cardOpacity,
+                  fontSize: appState.settings.fontSize * 1.5, // Scale for high res
+                  fontFamily: appState.settings.fontFamily,
+                  showBackground: appState.settings.showCardBackground,
+                  fillContainer: true,
                 ),
               ),
           ],
@@ -213,12 +212,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 final effectiveBlur = appState.isOriginalView ? 0.0 : appState.settings.blurSigma;
                 final showCard = !appState.isOriginalView && appState.isQuoteVisible;
                 final showCardBg = appState.settings.showCardBackground;
-
-                final normalizedLeft = appState.settings.cardLeftN.clamp(0.0, 1.0);
-                final normalizedTop = appState.settings.cardTopN.clamp(0.0, 1.0);
-
-                final alignX = (normalizedLeft * 2) - 1;
-                final alignY = (normalizedTop * 2) - 1;
 
                 final backgroundImage = Image.asset(
                   appState.quote.imagePath,
@@ -308,19 +301,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
                             // ── Quote Card ────────────────────────────────────────
                             if (showCard)
-                              Positioned.fill(
-                                child: Align(
-                                  alignment: Alignment(alignX, alignY),
-                                  child: QuoteCard(
-                                    text: appState.quote.text(appState.settings.appLanguage),
-                                    author: appState.quote.author(appState.settings.appLanguage),
-                                    cardBackgroundColor: Color(appState.settings.cardBackgroundColorValue),
-                                    quoteTextColor: Color(appState.settings.textColorValue),
-                                    opacity: appState.settings.cardOpacity,
-                                    fontSize: appState.settings.fontSize,
-                                    fontFamily: appState.settings.fontFamily,
-                                    showBackground: showCardBg,
-                                  ),
+                              Positioned(
+                                left: appState.settings.cardLeftN.clamp(0.0, 1.0) * constraints.maxWidth,
+                                top:  appState.settings.cardTopN.clamp(0.0, 1.0)  * constraints.maxHeight,
+                                width:  appState.settings.cardWidthN.clamp(0.01, 1.0) * constraints.maxWidth,
+                                height: appState.settings.cardHeightN.clamp(0.01, 1.0) * constraints.maxHeight,
+                                child: QuoteCard(
+                                  text: appState.quote.text(appState.settings.appLanguage),
+                                  author: appState.quote.author(appState.settings.appLanguage),
+                                  cardBackgroundColor: Color(appState.settings.cardBackgroundColorValue),
+                                  quoteTextColor: Color(appState.settings.textColorValue),
+                                  opacity: appState.settings.cardOpacity,
+                                  fontSize: appState.settings.fontSize,
+                                  fontFamily: appState.settings.fontFamily,
+                                  showBackground: showCardBg,
+                                  fillContainer: true,
                                 ),
                               ),
                           ],
@@ -340,8 +335,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.86),
+                            color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.88),
                             borderRadius: BorderRadius.circular(26),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.18),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -407,13 +409,15 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final iconColor = accentColor ?? cs.primary;
     return Ink(
       decoration: ShapeDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
+        color: cs.surfaceContainer.withValues(alpha: 0.9),
         shape: const CircleBorder(),
       ),
       child: IconButton(
-        icon: Icon(icon, color: (accentColor ?? Colors.black).withValues(alpha: 0.8)),
+        icon: Icon(icon, color: iconColor),
         onPressed: onTap,
       ),
     );
