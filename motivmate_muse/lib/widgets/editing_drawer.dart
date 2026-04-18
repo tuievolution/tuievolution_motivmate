@@ -168,7 +168,7 @@ class _EditingDrawerState extends State<EditingDrawer> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: DropdownButtonFormField<String>(
-            value: draft.photoFilterId,
+            initialValue: draft.photoFilterId,
             items: filters.entries
                 .map(
                   (e) => DropdownMenuItem(
@@ -342,7 +342,7 @@ class _EditingDrawerState extends State<EditingDrawer> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: DropdownButtonFormField<String>(
-            value: draft.fontFamily,
+            initialValue: draft.fontFamily,
             items: fonts
                 .map(
                   (f) => DropdownMenuItem(
