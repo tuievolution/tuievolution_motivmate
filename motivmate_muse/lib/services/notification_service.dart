@@ -79,7 +79,7 @@ class NotificationService {
     const id = 999999;
     await _plugin.show(
       id: id,
-      title: 'MotivMate',
+      title: 'MotivMood',
       body: '"${quote.text(language)}"',
       notificationDetails: _notificationDetails(),
     );
