@@ -1,57 +1,56 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Computes a contrasting shadow color for an effect.
-/// Dark text → white glow; Light text → dark shadow.
+/// Computes a contrasting shadow color for an effect as default.
 Color _contrastColor(Color base) {
   final luminance = base.computeLuminance();
   return luminance > 0.4 ? Colors.black : Colors.white;
 }
 
 /// Returns a list of [Shadow]s for the given effect ID.
-List<Shadow> _buildShadows(String effectId, Color textColor) {
-  final contrast = _contrastColor(textColor);
+List<Shadow> _buildShadows(String effectId, Color textColor, Color effectColor) {
+  final contrast = effectColor;
   switch (effectId) {
-    // ── Subtle dark/light drop shadow ─────────────────────────────────────
+    // ── Subtle drop shadow ─────────────────────────────────────
     case 'shadow_soft':
       return [
-        Shadow(color: contrast.withValues(alpha: 0.55), blurRadius: 6, offset: const Offset(1, 2)),
+        Shadow(color: contrast.withValues(alpha: 0.75), blurRadius: 6, offset: const Offset(1, 2)),
       ];
 
-    // ── Solid hard shadow (offset, no blur) ────────────────────────────────
+    // ── Solid hard shadow ────────────────────────────────
     case 'shadow_hard':
       return [
-        Shadow(color: contrast.withValues(alpha: 0.75), blurRadius: 0, offset: const Offset(2, 2)),
+        Shadow(color: contrast, blurRadius: 0, offset: const Offset(2, 2)),
       ];
 
-    // ── Neon glow (multi-layer spread) ────────────────────────────────────
+    // ── Neon glow ────────────────────────────────────
     case 'neon':
       return [
-        Shadow(color: textColor.withValues(alpha: 0.9), blurRadius: 4),
-        Shadow(color: textColor.withValues(alpha: 0.7), blurRadius: 12),
-        Shadow(color: textColor.withValues(alpha: 0.5), blurRadius: 24),
+        Shadow(color: contrast.withValues(alpha: 0.95), blurRadius: 4),
+        Shadow(color: contrast.withValues(alpha: 0.75), blurRadius: 12),
+        Shadow(color: contrast.withValues(alpha: 0.55), blurRadius: 24),
       ];
 
     // ── Cloud / glowing halo ───────────────────────────────────────────────
     case 'cloud':
       return [
-        Shadow(color: contrast.withValues(alpha: 0.25), blurRadius: 14),
-        Shadow(color: contrast.withValues(alpha: 0.15), blurRadius: 28),
-        Shadow(color: contrast.withValues(alpha: 0.08), blurRadius: 48),
+        Shadow(color: contrast.withValues(alpha: 0.45), blurRadius: 14),
+        Shadow(color: contrast.withValues(alpha: 0.30), blurRadius: 28),
+        Shadow(color: contrast.withValues(alpha: 0.15), blurRadius: 48),
       ];
 
-    // ── Retro long shadow (repeated offsets) ──────────────────────────────
+    // ── Retro long shadow ──────────────────────────────
     case 'retro':
       return List.generate(
         8,
         (i) => Shadow(
-          color: contrast.withValues(alpha: 0.12 - i * 0.01),
+          color: contrast.withValues(alpha: 0.25 - i * 0.02),
           blurRadius: 0,
           offset: Offset((i + 1).toDouble(), (i + 1).toDouble()),
         ),
       );
 
-    // ── Emboss (light above, shadow below) ────────────────────────────────
+    // ── Emboss ────────────────────────────────
     case 'emboss':
       return [
         Shadow(color: Colors.white.withValues(alpha: 0.6), blurRadius: 0, offset: const Offset(-1, -1)),
@@ -69,14 +68,14 @@ class QuoteCard extends StatelessWidget {
   final String author;
   final Color cardBackgroundColor;
   final Color quoteTextColor;
+  final Color? effectColor;
   final double opacity;
   final double fontSize;
   final String fontFamily;
   final String textEffectId;
   final bool showBackground;
 
-  /// When true the card expands to fill its parent box (used in the resizer).
-  /// When false (default) the card wraps its content with a max-width cap.
+  /// When true the card expands to fill its parent box.
   final bool fillContainer;
 
   final double borderRadius;
@@ -88,6 +87,7 @@ class QuoteCard extends StatelessWidget {
     required this.author,
     required this.cardBackgroundColor,
     required this.quoteTextColor,
+    this.effectColor,
     required this.opacity,
     required this.fontSize,
     required this.fontFamily,
@@ -110,10 +110,11 @@ class QuoteCard extends StatelessWidget {
       baseStyle = const TextStyle(fontFamily: 'Roboto');
     }
 
-    final shadows = _buildShadows(textEffectId, quoteTextColor);
+    final effColor = effectColor ?? _contrastColor(quoteTextColor);
+    final shadows = _buildShadows(textEffectId, quoteTextColor, effColor);
 
-    // Font size is capped to avoid overflow (max 24)
-    final clampedFontSize = fontSize.clamp(10.0, 24.0);
+    // Font size is capped to avoid overflow (max 28pt)
+    final clampedFontSize = fontSize.clamp(10.0, 28.0);
     final authorFontSize = (clampedFontSize * 0.45).clamp(10.0, 16.0);
 
     final content = LayoutBuilder(
@@ -134,7 +135,9 @@ class QuoteCard extends StatelessWidget {
               fit: BoxFit.scaleDown,
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxWidth: constraints.maxWidth > 0 ? constraints.maxWidth - quotePadding * 2 + quotePadding * 2 : 320,
+                  maxWidth: constraints.maxWidth > 0
+                      ? constraints.maxWidth - quotePadding * 2
+                      : 320,
                 ),
                 child: Text(
                   '"$text"',

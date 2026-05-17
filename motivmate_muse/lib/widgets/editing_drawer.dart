@@ -311,9 +311,21 @@ class _EditingDrawerState extends State<EditingDrawer> {
         sampleText: quote.text(lang),
         sampleAuthor: quote.author(lang),
         language: lang,
-        showPreview: false,
         onChanged: (updated) {
           _updateDraft(updated);
+        },
+        onConfirm: (updated) async {
+          _updateDraft(updated);
+          draft = draft.copyWith(showCard: widget.appState.isQuoteVisible);
+          widget.appState.updateSettingsTemporary(draft);
+          await widget.appState.persistSettings(
+            rescheduleNotifications: true,
+          );
+          if (mounted) Navigator.of(context).pop();
+        },
+        onCancel: () {
+          widget.appState.updateSettingsTemporary(original);
+          if (mounted) Navigator.of(context).pop();
         },
       ),
     );

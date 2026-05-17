@@ -113,10 +113,7 @@ class AppState extends ChangeNotifier {
       return;
     }
 
-    final allQuotes = await quoteService.getAllQuotes(
-      language: settings.appLanguage,
-    );
-    final scheduleQuotes = allQuotes.isEmpty ? [quote] : allQuotes.take(8).toList();
+    final scheduleQuotes = [quote];
     await notificationService.scheduleBarNotifications(
       settings: settings,
       quotesForSchedule: scheduleQuotes,

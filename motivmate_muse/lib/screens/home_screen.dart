@@ -255,24 +255,44 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
 
                             // ── Quote Card ────────────────────────────────────────
-                            if (showCard)
-                              Positioned(
-                                left: appState.settings.cardLeftN.clamp(0.0, 1.0) * constraints.maxWidth,
-                                top:  appState.settings.cardTopN.clamp(0.0, 1.0)  * constraints.maxHeight,
-                                width:  appState.settings.cardWidthN.clamp(0.01, 1.0) * constraints.maxWidth,
-                                child: QuoteCard(
-                                  text: appState.quote.text(appState.settings.appLanguage),
-                                  author: appState.quote.author(appState.settings.appLanguage),
-                                  cardBackgroundColor: Color(appState.settings.cardBackgroundColorValue),
-                                  quoteTextColor: Color(appState.settings.textColorValue),
-                                  opacity: appState.settings.cardOpacity,
-                                  fontSize: appState.settings.fontSize,
-                                  fontFamily: appState.settings.fontFamily,
-                                  textEffectId: appState.settings.textEffectId,
-                                  showBackground: showCardBg,
-                                  fillContainer: true,
-                                ),
-                              ),
+                            if (showCard) ...[
+                              (() {
+                                final quoteText = appState.quote.text(appState.settings.appLanguage);
+                                final quoteAuthor = appState.quote.author(appState.settings.appLanguage);
+
+                                double effectiveFontSize = appState.settings.fontSize;
+                                double effectiveTopN = appState.settings.cardTopN;
+
+                                // Dynamically shrink and shift top position if quote text is very long
+                                final textLen = quoteText.length;
+                                if (textLen > 100) {
+                                  final shrinkFactor = ((textLen - 100) / 160.0).clamp(0.0, 0.40);
+                                  effectiveFontSize = (effectiveFontSize * (1.0 - shrinkFactor)).clamp(10.0, 28.0);
+
+                                  final shiftFactor = shrinkFactor * 0.18;
+                                  effectiveTopN = (effectiveTopN - shiftFactor).clamp(0.04, 0.95);
+                                }
+
+                                return Positioned(
+                                  left: appState.settings.cardLeftN.clamp(0.0, 1.0) * constraints.maxWidth,
+                                  top:  effectiveTopN.clamp(0.0, 1.0)  * constraints.maxHeight,
+                                  width:  appState.settings.cardWidthN.clamp(0.01, 1.0) * constraints.maxWidth,
+                                  child: QuoteCard(
+                                    text: quoteText,
+                                    author: quoteAuthor,
+                                    cardBackgroundColor: Color(appState.settings.cardBackgroundColorValue),
+                                    quoteTextColor: Color(appState.settings.textColorValue),
+                                    effectColor: Color(appState.settings.effectColorValue),
+                                    opacity: appState.settings.cardOpacity,
+                                    fontSize: effectiveFontSize,
+                                    fontFamily: appState.settings.fontFamily,
+                                    textEffectId: appState.settings.textEffectId,
+                                    showBackground: showCardBg,
+                                    fillContainer: true,
+                                  ),
+                                );
+                              }()),
+                            ],
                           ],
                         ),
                       ),

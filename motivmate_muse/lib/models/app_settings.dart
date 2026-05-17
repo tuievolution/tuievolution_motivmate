@@ -1,5 +1,3 @@
-
-
 enum BarTiming {
   intervalMinutes,
   timeOfDay,
@@ -28,6 +26,7 @@ class AppSettings {
   // Text edits
   final double fontSize;
   final int textColorValue;
+  final int effectColorValue;
   final String fontFamily;
   final String textEffectId;
 
@@ -54,6 +53,7 @@ class AppSettings {
     required this.cardBackgroundColorValue,
     required this.fontSize,
     required this.textColorValue,
+    required this.effectColorValue,
     required this.fontFamily,
     required this.textEffectId,
     required this.barNotificationsEnabled,
@@ -73,13 +73,14 @@ class AppSettings {
       showCardBackground: true,
       backgroundOverlayOpacity: 0.35,
       cardOpacity: 0.92,
-      cardLeftN: 0.05,  // 5% from left
-      cardTopN: 0.20,   // 20% from top
-      cardWidthN: 0.88, // 88% of screen width — wide enough for any quote
-      cardHeightN: 0.38, // 38% of screen height — tall enough for multi-line quotes
+      cardLeftN: 0.06,  // Perfectly centered horizontally: (1.0 - 0.88)/2
+      cardTopN: 0.32,   // Perfectly centered vertically: (1.0 - 0.36)/2
+      cardWidthN: 0.88, // 88% of screen width
+      cardHeightN: 0.36, // 36% of screen height
       cardBackgroundColorValue: 0xFFFFFFFB,
       fontSize: 22,
       textColorValue: 0xFF2A1B12,
+      effectColorValue: 0xFF000000,
       fontFamily: 'Roboto',
       textEffectId: 'none',
       barNotificationsEnabled: false,
@@ -106,6 +107,7 @@ class AppSettings {
     int? cardBackgroundColorValue,
     double? fontSize,
     int? textColorValue,
+    int? effectColorValue,
     String? fontFamily,
     String? textEffectId,
     bool? barNotificationsEnabled,
@@ -132,6 +134,7 @@ class AppSettings {
           cardBackgroundColorValue ?? this.cardBackgroundColorValue,
       fontSize: fontSize ?? this.fontSize,
       textColorValue: textColorValue ?? this.textColorValue,
+      effectColorValue: effectColorValue ?? this.effectColorValue,
       fontFamily: fontFamily ?? this.fontFamily,
       textEffectId: textEffectId ?? this.textEffectId,
       barNotificationsEnabled:
@@ -162,6 +165,7 @@ class AppSettings {
         'cardBackgroundColorValue': cardBackgroundColorValue,
         'fontSize': fontSize,
         'textColorValue': textColorValue,
+        'effectColorValue': effectColorValue,
         'fontFamily': fontFamily,
         'textEffectId': textEffectId,
         'barNotificationsEnabled': barNotificationsEnabled,
@@ -192,8 +196,6 @@ class AppSettings {
       cardLeftN:
           (json['cardLeftN'] as num?)?.toDouble() ?? defaults.cardLeftN,
       cardTopN: (json['cardTopN'] as num?)?.toDouble() ?? defaults.cardTopN,
-      // cardWidthN / cardHeightN: fall back to defaults for old saves that
-      // don't have these keys yet (backwards compatible).
       cardWidthN:
           (json['cardWidthN'] as num?)?.toDouble() ?? defaults.cardWidthN,
       cardHeightN:
@@ -205,6 +207,8 @@ class AppSettings {
           (json['fontSize'] as num?)?.toDouble() ?? defaults.fontSize,
       textColorValue:
           json['textColorValue'] as int? ?? defaults.textColorValue,
+      effectColorValue:
+          json['effectColorValue'] as int? ?? defaults.effectColorValue,
       fontFamily: json['fontFamily'] as String? ?? defaults.fontFamily,
       textEffectId: json['textEffectId'] as String? ?? defaults.textEffectId,
       barNotificationsEnabled:

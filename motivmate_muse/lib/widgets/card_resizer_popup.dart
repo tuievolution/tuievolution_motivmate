@@ -205,9 +205,12 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
                                       widget.settings.cardBackgroundColorValue),
                                   quoteTextColor:
                                       Color(widget.settings.textColorValue),
+                                  effectColor:
+                                      Color(widget.settings.effectColorValue),
                                   opacity: widget.settings.cardOpacity,
                                   fontSize: widget.settings.fontSize,
                                   fontFamily: widget.settings.fontFamily,
+                                  textEffectId: widget.settings.textEffectId,
                                   showBackground:
                                       widget.settings.showCardBackground,
                                   // let it fill the container

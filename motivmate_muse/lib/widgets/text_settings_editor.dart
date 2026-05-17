@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
 import '../models/app_settings.dart';
 import 'quote_card.dart';
 
 const List<String> _availableFonts = [
-  'Roboto', 'Playfair Display', 'Lato', 'Montserrat', 'Open Sans',
-  'Raleway', 'Oswald', 'Merriweather', 'Dancing Script', 'Pacifico',
+  'Comic Neue', 'Roboto', 'Playfair Display', 'Lato', 'Montserrat',
+  'Open Sans', 'Raleway', 'Oswald', 'Merriweather', 'Dancing Script',
+  'Pacifico', 'Caveat', 'Comfortaa', 'Lobster', 'Satisfy',
 ];
 
 const List<Map<String, String>> _textEffects = [
@@ -19,21 +21,38 @@ const List<Map<String, String>> _textEffects = [
   {'id': 'emboss',      'labelTr': 'Kabartma',        'labelEn': 'Emboss'},
 ];
 
+const List<Color> _presetColors = [
+  Colors.white,
+  Colors.black,
+  Color(0xFFE53935), // Red
+  Color(0xFFD81B60), // Pink
+  Color(0xFF8E24AA), // Purple
+  Color(0xFF5E35B1), // Deep Purple
+  Color(0xFF3949AB), // Indigo
+  Color(0xFF1E88E5), // Blue
+  Color(0xFF039BE5), // Light Blue
+  Color(0xFF00ACC1), // Cyan
+  Color(0xFF00897B), // Teal
+  Color(0xFF43A047), // Green
+  Color(0xFF7CB342), // Light Green
+  Color(0xFFFDD835), // Yellow
+  Color(0xFFFB8C00), // Orange
+];
+
 class TextSettingsEditor extends StatefulWidget {
   final AppSettings initialSettings;
   final String sampleText;
   final String sampleAuthor;
   final String language;
-  final bool showPreview;
 
   /// Called in real-time when any value changes.
-  final void Function(AppSettings updated)? onChanged;
+  final void Function(AppSettings updated) onChanged;
 
-  /// Called when the user presses "Onayla" / "Confirm". Optional.
-  final void Function(AppSettings updated)? onConfirm;
+  /// Called when the user presses "Uygula" / "Apply".
+  final void Function(AppSettings updated) onConfirm;
 
-  /// Called when the user presses "İptal" / "Cancel". Optional.
-  final VoidCallback? onCancel;
+  /// Called when the user presses "İptal" / "Cancel".
+  final VoidCallback onCancel;
 
   const TextSettingsEditor({
     super.key,
@@ -41,10 +60,9 @@ class TextSettingsEditor extends StatefulWidget {
     required this.sampleText,
     required this.sampleAuthor,
     required this.language,
-    this.showPreview = true,
-    this.onChanged,
-    this.onConfirm,
-    this.onCancel,
+    required this.onChanged,
+    required this.onConfirm,
+    required this.onCancel,
   });
 
   @override
@@ -53,11 +71,24 @@ class TextSettingsEditor extends StatefulWidget {
 
 class _TextSettingsEditorState extends State<TextSettingsEditor> {
   late AppSettings _draft;
+  Color? _customTextColor;
+  Color? _customEffectColor;
 
   @override
   void initState() {
     super.initState();
     _draft = widget.initialSettings;
+    
+    // Initialize custom colors if they are not in the preset list
+    final textC = Color(_draft.textColorValue);
+    if (!_presetColors.any((c) => c.toARGB32() == textC.toARGB32())) {
+      _customTextColor = textC;
+    }
+    
+    final effectC = Color(_draft.effectColorValue);
+    if (!_presetColors.any((c) => c.toARGB32() == effectC.toARGB32())) {
+      _customEffectColor = effectC;
+    }
   }
 
   @override
@@ -72,54 +103,66 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
 
   void _notify(AppSettings next) {
     setState(() => _draft = next);
-    widget.onChanged?.call(next);
+    widget.onChanged(next);
+  }
+
+  void _pickCustomColor(bool isTextColor) {
+    final initialColor = isTextColor
+        ? Color(_draft.textColorValue)
+        : Color(_draft.effectColorValue);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        Color selected = initialColor;
+        return AlertDialog(
+          title: Text(_l('Özel Renk Seç', 'Pick Custom Color')),
+          content: SingleChildScrollView(
+            child: ColorPicker(
+              pickerColor: initialColor,
+              onColorChanged: (c) => selected = c,
+              enableAlpha: false,
+              displayThumbColor: true,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(_l('İptal', 'Cancel')),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  if (isTextColor) {
+                    _customTextColor = selected;
+                    _notify(_draft.copyWith(textColorValue: selected.toARGB32()));
+                  } else {
+                    _customEffectColor = selected;
+                    _notify(_draft.copyWith(effectColorValue: selected.toARGB32()));
+                  }
+                });
+                Navigator.of(context).pop();
+              },
+              child: Text(_l('Seç', 'Select')),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final textColor = Color(_draft.textColorValue);
+    final effectColor = Color(_draft.effectColorValue);
     final cardBg = Color(_draft.cardBackgroundColorValue);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // ── Live Preview (Optional) ───────────────────────────────────────
-        if (widget.showPreview) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Text(
-              _l('Yazı Görünümü', 'Text Preview'),
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            ),
-          ),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: Colors.grey.shade200,
-            ),
-            padding: const EdgeInsets.all(10),
-            child: QuoteCard(
-              text: widget.sampleText,
-              author: widget.sampleAuthor,
-              cardBackgroundColor: cardBg,
-              quoteTextColor: textColor,
-              opacity: _draft.cardOpacity,
-              fontSize: _draft.fontSize,
-              fontFamily: _draft.fontFamily,
-              textEffectId: _draft.textEffectId,
-              showBackground: _draft.showCardBackground,
-              fillContainer: false,
-              borderRadius: 10,
-              quotePadding: 12,
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-
         // ── Font Size ─────────────────────────────────────────────────────
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: Text(
             _l('Yazı Boyutu', 'Font Size'),
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
@@ -131,10 +174,10 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
             const Icon(Icons.text_fields, size: 16),
             Expanded(
               child: Slider(
-                value: _draft.fontSize.clamp(10, 24),
+                value: _draft.fontSize.clamp(10, 28),
                 min: 10,
-                max: 24,
-                divisions: 14,
+                max: 28,
+                divisions: 18,
                 label: '${_draft.fontSize.round()}pt',
                 onChanged: (v) => _notify(_draft.copyWith(fontSize: v)),
               ),
@@ -147,7 +190,7 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
           ],
         ),
 
-        // ── Text Color ────────────────────────────────────────────────────
+        // ── Text Color (Yazı Rengi) ───────────────────────────────────────
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
           child: Text(
@@ -160,7 +203,7 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
           child: Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: _colorPalette(textColor),
+            children: _colorPalette(textColor, true),
           ),
         ),
 
@@ -226,74 +269,164 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
           ),
         ),
 
-        const SizedBox(height: 16),
-
-        // ── Confirm / Cancel (Optional) ───────────────────────────────────
-        if (widget.onConfirm != null && widget.onCancel != null) ...[
+        // ── Effect Color (Efekt Rengi) ────────────────────────────────────
+        if (_draft.textEffectId != 'none') ...[
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: widget.onCancel,
-                    child: Text(_l('İptal', 'Cancel')),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () => widget.onConfirm!(_draft),
-                    child: Text(_l('Onayla', 'Confirm')),
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.fromLTRB(8, 12, 8, 6),
+            child: Text(
+              _l('Efekt Rengi', 'Effect Color'),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
           ),
-          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _colorPalette(effectColor, false),
+            ),
+          ),
         ],
+
+        const SizedBox(height: 20),
+
+        // ── Yazı Görünümü (Preview Card) ──────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Text(
+            _l('Yazı Görünümü', 'Text Preview'),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: Colors.grey.shade900.withValues(alpha: 0.8),
+          ),
+          padding: const EdgeInsets.all(12),
+          child: QuoteCard(
+            text: widget.sampleText,
+            author: widget.sampleAuthor,
+            cardBackgroundColor: cardBg,
+            quoteTextColor: textColor,
+            effectColor: effectColor,
+            opacity: _draft.cardOpacity,
+            fontSize: _draft.fontSize,
+            fontFamily: _draft.fontFamily,
+            textEffectId: _draft.textEffectId,
+            showBackground: _draft.showCardBackground,
+            fillContainer: false,
+            borderRadius: 10,
+            quotePadding: 12,
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // ── Confirm / Cancel Buttons ──────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white54),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: widget.onCancel,
+                  child: Text(_l('İptal', 'Cancel'), style: const TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () => widget.onConfirm(_draft),
+                  child: Text(_l('Uygula', 'Apply'), style: const TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
       ],
     );
   }
 
-  List<Widget> _colorPalette(Color current) {
-    final colors = [
-      Colors.black,
-      Colors.white,
-      const Color(0xFF2A1B12),
-      const Color(0xFF1A237E),
-      const Color(0xFF880E4F),
-      const Color(0xFF1B5E20),
-      const Color(0xFFBF360C),
-      const Color(0xFF37474F),
-      const Color(0xFFFFD600),
-      const Color(0xFF00BCD4),
-    ];
+  List<Widget> _colorPalette(Color current, bool isTextColor) {
+    List<Widget> items = [];
 
-    return colors.map((c) {
+    // Render first 15 preset colors
+    for (int i = 0; i < _presetColors.length; i++) {
+      final c = _presetColors[i];
       final selected = current.toARGB32() == c.toARGB32();
-      return GestureDetector(
-        onTap: () => _notify(_draft.copyWith(textColorValue: c.toARGB32())),
+      items.add(
+        GestureDetector(
+          onTap: () {
+            if (isTextColor) {
+              _notify(_draft.copyWith(textColorValue: c.toARGB32()));
+            } else {
+              _notify(_draft.copyWith(effectColorValue: c.toARGB32()));
+            }
+          },
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: c,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: selected ? Colors.blueAccent : Colors.grey.shade400,
+                width: selected ? 2.5 : 1.0,
+              ),
+              boxShadow: selected
+                  ? [BoxShadow(color: Colors.blueAccent.withValues(alpha: 0.4), blurRadius: 6)]
+                  : null,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // 16th item: custom color picker
+    final customColor = isTextColor ? _customTextColor : _customEffectColor;
+    final isCustomSelected = customColor != null && current.toARGB32() == customColor.toARGB32();
+    
+    items.add(
+      GestureDetector(
+        onTap: () => _pickCustomColor(isTextColor),
         child: Container(
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: c,
+            color: customColor ?? Colors.transparent,
             shape: BoxShape.circle,
             border: Border.all(
-              color: selected ? Colors.blueAccent : Colors.grey.shade400,
-              width: selected ? 2.5 : 1.0,
+              color: isCustomSelected ? Colors.blueAccent : Colors.white60,
+              width: isCustomSelected ? 2.5 : 1.5,
             ),
-            boxShadow: selected
+            boxShadow: isCustomSelected
                 ? [BoxShadow(color: Colors.blueAccent.withValues(alpha: 0.4), blurRadius: 6)]
                 : null,
           ),
+          child: customColor == null
+              ? const Icon(Icons.colorize_rounded, size: 16, color: Colors.white)
+              : isCustomSelected
+                  ? null
+                  : const Icon(Icons.edit, size: 12, color: Colors.white70),
         ),
-      );
-    }).toList();
+      ),
+    );
+
+    return items;
   }
 }
