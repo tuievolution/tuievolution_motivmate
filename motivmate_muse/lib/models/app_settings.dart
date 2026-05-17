@@ -1,8 +1,4 @@
-enum PopupTiming {
-  immediate,
-  timeOfDay,
-  betweenHours,
-}
+
 
 enum BarTiming {
   intervalMinutes,
@@ -33,18 +29,13 @@ class AppSettings {
   final double fontSize;
   final int textColorValue;
   final String fontFamily;
+  final String textEffectId;
 
   // Notifications
   final bool barNotificationsEnabled;
-  final bool popupOnOpenEnabled;
   final BarTiming barTiming;
-  final int barIntervalMinutes; // when barTiming == intervalMinutes
-  final int barTimeOfDayMinutes; // minutes after midnight when timeOfDay
-
-  final PopupTiming popupTiming;
-  final int popupTimeOfDayMinutes;
-  final int popupBetweenStartMinutes;
-  final int popupBetweenEndMinutes;
+  final int barIntervalMinutes;
+  final int barTimeOfDayMinutes;
 
   const AppSettings({
     required this.themeId,
@@ -64,15 +55,11 @@ class AppSettings {
     required this.fontSize,
     required this.textColorValue,
     required this.fontFamily,
+    required this.textEffectId,
     required this.barNotificationsEnabled,
-    required this.popupOnOpenEnabled,
     required this.barTiming,
     required this.barIntervalMinutes,
     required this.barTimeOfDayMinutes,
-    required this.popupTiming,
-    required this.popupTimeOfDayMinutes,
-    required this.popupBetweenStartMinutes,
-    required this.popupBetweenEndMinutes,
   });
 
   factory AppSettings.defaults() {
@@ -94,15 +81,11 @@ class AppSettings {
       fontSize: 22,
       textColorValue: 0xFF2A1B12,
       fontFamily: 'Roboto',
+      textEffectId: 'none',
       barNotificationsEnabled: false,
-      popupOnOpenEnabled: false,
       barTiming: BarTiming.intervalMinutes,
       barIntervalMinutes: 120,
       barTimeOfDayMinutes: 9 * 60,
-      popupTiming: PopupTiming.betweenHours,
-      popupTimeOfDayMinutes: 9 * 60,
-      popupBetweenStartMinutes: 8 * 60,
-      popupBetweenEndMinutes: 22 * 60,
     );
   }
 
@@ -124,15 +107,11 @@ class AppSettings {
     double? fontSize,
     int? textColorValue,
     String? fontFamily,
+    String? textEffectId,
     bool? barNotificationsEnabled,
-    bool? popupOnOpenEnabled,
     BarTiming? barTiming,
     int? barIntervalMinutes,
     int? barTimeOfDayMinutes,
-    PopupTiming? popupTiming,
-    int? popupTimeOfDayMinutes,
-    int? popupBetweenStartMinutes,
-    int? popupBetweenEndMinutes,
   }) {
     return AppSettings(
       themeId: themeId ?? this.themeId,
@@ -154,24 +133,15 @@ class AppSettings {
       fontSize: fontSize ?? this.fontSize,
       textColorValue: textColorValue ?? this.textColorValue,
       fontFamily: fontFamily ?? this.fontFamily,
+      textEffectId: textEffectId ?? this.textEffectId,
       barNotificationsEnabled:
           barNotificationsEnabled ?? this.barNotificationsEnabled,
-      popupOnOpenEnabled: popupOnOpenEnabled ?? this.popupOnOpenEnabled,
       barTiming: barTiming ?? this.barTiming,
       barIntervalMinutes: barIntervalMinutes ?? this.barIntervalMinutes,
       barTimeOfDayMinutes: barTimeOfDayMinutes ?? this.barTimeOfDayMinutes,
-      popupTiming: popupTiming ?? this.popupTiming,
-      popupTimeOfDayMinutes:
-          popupTimeOfDayMinutes ?? this.popupTimeOfDayMinutes,
-      popupBetweenStartMinutes:
-          popupBetweenStartMinutes ?? this.popupBetweenStartMinutes,
-      popupBetweenEndMinutes:
-          popupBetweenEndMinutes ?? this.popupBetweenEndMinutes,
     );
   }
 
-  static int _popupTimingToJson(PopupTiming t) => t.index;
-  static PopupTiming _popupTimingFromJson(int v) => PopupTiming.values[v];
   static int _barTimingToJson(BarTiming t) => t.index;
   static BarTiming _barTimingFromJson(int v) => BarTiming.values[v];
 
@@ -193,15 +163,11 @@ class AppSettings {
         'fontSize': fontSize,
         'textColorValue': textColorValue,
         'fontFamily': fontFamily,
+        'textEffectId': textEffectId,
         'barNotificationsEnabled': barNotificationsEnabled,
-        'popupOnOpenEnabled': popupOnOpenEnabled,
         'barTiming': _barTimingToJson(barTiming),
         'barIntervalMinutes': barIntervalMinutes,
         'barTimeOfDayMinutes': barTimeOfDayMinutes,
-        'popupTiming': _popupTimingToJson(popupTiming),
-        'popupTimeOfDayMinutes': popupTimeOfDayMinutes,
-        'popupBetweenStartMinutes': popupBetweenStartMinutes,
-        'popupBetweenEndMinutes': popupBetweenEndMinutes,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -240,11 +206,10 @@ class AppSettings {
       textColorValue:
           json['textColorValue'] as int? ?? defaults.textColorValue,
       fontFamily: json['fontFamily'] as String? ?? defaults.fontFamily,
+      textEffectId: json['textEffectId'] as String? ?? defaults.textEffectId,
       barNotificationsEnabled:
           json['barNotificationsEnabled'] as bool? ??
               defaults.barNotificationsEnabled,
-      popupOnOpenEnabled:
-          json['popupOnOpenEnabled'] as bool? ?? defaults.popupOnOpenEnabled,
       barTiming: json['barTiming'] != null
           ? _barTimingFromJson(json['barTiming'] as int)
           : defaults.barTiming,
@@ -252,16 +217,6 @@ class AppSettings {
           json['barIntervalMinutes'] as int? ?? defaults.barIntervalMinutes,
       barTimeOfDayMinutes: json['barTimeOfDayMinutes'] as int? ??
           defaults.barTimeOfDayMinutes,
-      popupTiming: json['popupTiming'] != null
-          ? _popupTimingFromJson(json['popupTiming'] as int)
-          : defaults.popupTiming,
-      popupTimeOfDayMinutes: json['popupTimeOfDayMinutes'] as int? ??
-          defaults.popupTimeOfDayMinutes,
-      popupBetweenStartMinutes:
-          json['popupBetweenStartMinutes'] as int? ??
-              defaults.popupBetweenStartMinutes,
-      popupBetweenEndMinutes: json['popupBetweenEndMinutes'] as int? ??
-          defaults.popupBetweenEndMinutes,
     );
   }
 }

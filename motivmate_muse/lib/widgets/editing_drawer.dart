@@ -5,6 +5,7 @@ import '../app_state.dart';
 import '../models/app_settings.dart';
 import '../models/theme_presets.dart';
 import 'card_resizer_popup.dart';
+import 'text_settings_editor.dart';
 
 class EditingDrawer extends StatefulWidget {
   final AppState appState;
@@ -155,9 +156,7 @@ class _EditingDrawerState extends State<EditingDrawer> {
       'vintage': 'Vintage',
       'warm': 'Sıcak',
       'cool': 'Soğuk',
-      'cinematic': 'Sinematik',
       'rosy': 'Pembe Ton',
-      'faded': 'Soluk',
     };
 
     return ListView(
@@ -298,83 +297,25 @@ class _EditingDrawerState extends State<EditingDrawer> {
           icon: const Icon(Icons.crop_free),
           label: const Text('Kart Konumunu Düzenle'),
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Arayüzde sürükleyerek kartın yerini ayarlayabilirsin.',
-          style: TextStyle(color: cs.onSurface.withValues(alpha: 0.55), fontSize: 12),
-        ),
         const SizedBox(height: 20),
       ],
     );
   }
 
   Widget _buildTextTab(ColorScheme cs) {
-    const fonts = <String>[
-      'Roboto',
-      'Oswald',
-      'Lobster',
-      'Pacifico',
-      'Caveat',
-      'Playfair Display',
-      'Merriweather',
-      'Nunito',
-      'Raleway',
-      'Lora',
-    ];
-
-    return ListView(
-      children: [
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Punto (yazı boyutu)'),
-          subtitle: Text(draft.fontSize.toStringAsFixed(0)),
-        ),
-        Slider(
-          value: draft.fontSize,
-          min: 18,
-          max: 42,
-          divisions: 48,
-          label: draft.fontSize.toStringAsFixed(0),
-          onChanged: (v) => _updateDraft(draft.copyWith(fontSize: v)),
-        ),
-        const SizedBox(height: 10),
-
-        // ── Text COLOR — collapsible ────────────────────────────────────
-        _colorExpansionTile(
-          cs: cs,
-          title: 'Yazı rengi',
-          hexValue: draft.textColorValue,
-          pickerColor: Color(draft.textColorValue),
-          enableAlpha: false,
-          onColorChanged: (c) =>
-              _updateDraft(draft.copyWith(textColorValue: c.toARGB32())),
-        ),
-
-        const SizedBox(height: 10),
-        const ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text('Font'),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: DropdownButtonFormField<String>(
-            initialValue: draft.fontFamily,
-            items: fonts
-                .map(
-                  (f) => DropdownMenuItem(
-                    value: f,
-                    child: Text(f),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) {
-              if (value == null) return;
-              _updateDraft(draft.copyWith(fontFamily: value));
-            },
-          ),
-        ),
-        const SizedBox(height: 20),
-      ],
+    final quote = widget.appState.quote;
+    final lang = draft.appLanguage;
+    return SingleChildScrollView(
+      child: TextSettingsEditor(
+        initialSettings: draft,
+        sampleText: quote.text(lang),
+        sampleAuthor: quote.author(lang),
+        language: lang,
+        showPreview: false,
+        onChanged: (updated) {
+          _updateDraft(updated);
+        },
+      ),
     );
   }
 

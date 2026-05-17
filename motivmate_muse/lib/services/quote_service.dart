@@ -6,41 +6,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/quote.dart';
 
 class QuoteService {
-  static const int _imageCount = 419; // max image number in assets/images/
-  // Known existing image numbers (some are missing e.g. 55, 135, 195...)
-  // Build the list dynamically from AssetManifest or use the range
+  static const int _imageCount = 419; // max image number in ImageKit
+  static const String _imageKitBaseUrl = 'https://ik.imagekit.io/tuievolution/images';
+  
   final _rng = Random();
-  List<String> _imagePaths = [];
 
   // Cached quote list per language
   final Map<String, List<Quote>> _cacheByLanguage = {};
 
-  Future<void> _loadImages() async {
-    if (_imagePaths.isNotEmpty) return;
-    try {
-      // Try AssetManifest.json (Flutter < 3.12)
-      final manifestStr = await rootBundle.loadString('AssetManifest.json');
-      // The manifest is a JSON map: { "assets/images/image_1.jpg": [...], ... }
-      // Simple regex extraction to avoid dart:convert dependency issues
-      final regex = RegExp(r'"(assets/images/[^"]+\.jpg)"');
-      final matches = regex.allMatches(manifestStr);
-      _imagePaths = matches.map((m) => m.group(1)!).toList();
-    } catch (_) {
-      _imagePaths = [];
-    }
-
-    // Fallback: generate paths for image_1 through image_419
-    if (_imagePaths.isEmpty) {
-      _imagePaths = List.generate(
-        _imageCount,
-        (i) => 'assets/images/image_${i + 1}.jpg',
-      );
-    }
-  }
-
-  String _randomImagePath() {
-    if (_imagePaths.isEmpty) return 'assets/images/image_1.jpg';
-    return _imagePaths[_rng.nextInt(_imagePaths.length)];
+  String _randomImageKitUrl() {
+    final imageIndex = _rng.nextInt(_imageCount) + 1;
+    // HATA BURADAYDI: "?tr=f-webp" kısmı tamamen silindi
+    return '$_imageKitBaseUrl/bg_$imageIndex.jpg';
   }
 
   Future<List<Quote>> _loadAllQuotes() async {
@@ -71,7 +48,7 @@ class QuoteService {
         authorTr: author.isEmpty ? 'Anonim' : author,
         textEn: textEn.isEmpty ? textTr : textEn,
         authorEn: author.isEmpty ? 'Unknown' : author,
-        imageAsset: '', // set dynamically per call
+        imageAsset: '', // will be set dynamically
       ));
     }
     return quotes;
@@ -102,24 +79,55 @@ class QuoteService {
     return _cacheByLanguage[language]!;
   }
 
-  Future<Quote> getRandomQuote({required String language}) async {
+  Future<Quote> getRandomQuote({
+    required String language,
+    bool forceRefresh = false,
+  }) async {
     final quotes = await getAllQuotes(language: language);
-    await _loadImages();
-    final image = _randomImagePath();
-
     if (quotes.isEmpty) {
       return Quote(
         textTr: 'Motivasyon, alışkanlıkların doğal sonucudur.',
         authorTr: 'MotivMood',
         textEn: 'Motivation is the natural result of habits.',
         authorEn: 'MotivMood',
-        imageAsset: image,
+        imageAsset: _randomImageKitUrl(),
       );
     }
 
     final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    final todayStr = '${now.year}-${now.month}-${now.day}';
+
+    final savedDate = prefs.getString('dailyQuoteDate');
+    final savedIndex = prefs.getInt('dailyQuoteIndex');
+    final savedImage = prefs.getString('dailyQuoteImage');
+
+    if (!forceRefresh && savedDate == todayStr && savedIndex != null && savedImage != null) {
+      // Return today's saved quote and image
+      if (savedIndex >= 0 && savedIndex < quotes.length) {
+        final q = quotes[savedIndex];
+        // Fix any old URLs (motivmood, image_, double slashes) by reconstructing the URL
+        String safeSavedImage = savedImage;
+        final regex = RegExp(r'(?:bg_|image_)(\d+)\.jpg');
+        final match = regex.firstMatch(savedImage);
+        if (match != null) {
+          final idx = match.group(1);
+          // HATA BURADAYDI: "?tr=f-webp" kısmı tamamen silindi
+          safeSavedImage = '$_imageKitBaseUrl/bg_$idx.jpg';
+        }
+
+        return Quote(
+          textTr: q.textTr,
+          authorTr: q.authorTr,
+          textEn: q.textEn,
+          authorEn: q.authorEn,
+          imageAsset: safeSavedImage,
+        );
+      }
+    }
+
+    // Otherwise, generate a new quote and image
     List<String> shownList = prefs.getStringList('shownQuotes') ?? [];
-    
     List<int> unshownIndices = [];
     for (int i = 0; i < quotes.length; i++) {
       if (!shownList.contains(i.toString())) {
@@ -136,13 +144,20 @@ class QuoteService {
     shownList.add(selectedIndex.toString());
     await prefs.setStringList('shownQuotes', shownList);
 
+    final imageKitUrl = _randomImageKitUrl();
+
+    // Save for today
+    await prefs.setString('dailyQuoteDate', todayStr);
+    await prefs.setInt('dailyQuoteIndex', selectedIndex);
+    await prefs.setString('dailyQuoteImage', imageKitUrl);
+
     final q = quotes[selectedIndex];
     return Quote(
       textTr: q.textTr,
       authorTr: q.authorTr,
       textEn: q.textEn,
       authorEn: q.authorEn,
-      imageAsset: image,
+      imageAsset: imageKitUrl,
     );
   }
 

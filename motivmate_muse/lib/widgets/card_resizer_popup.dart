@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../models/app_settings.dart';
 import 'quote_card.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../cache_limit.dart';
 
 /// Full-screen editor that lets the user:
 ///  • Drag the card body  → move in any direction (X and Y)
@@ -61,12 +63,8 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
         return const ColorFilter.mode(Color(0xFFFF9800), BlendMode.softLight);
       case 'cool':
         return const ColorFilter.mode(Color(0xFF4264FB), BlendMode.softLight);
-      case 'cinematic':
-        return const ColorFilter.mode(Color(0xFF1B1B1B), BlendMode.darken);
       case 'rosy':
         return const ColorFilter.mode(Color(0xFFE91E63), BlendMode.softLight);
-      case 'faded':
-        return const ColorFilter.mode(Color(0xFFCCCCCC), BlendMode.lighten);
       case 'none':
       default:
         return null;
@@ -118,14 +116,6 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
         child: Column(
           children: [
             _buildAppBar(),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 2),
-              child: Text(
-                'Kartı taşımak için sürükleyin • Köşe/kenar tutamaçlarından boyutlandırın',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white60, fontSize: 11),
-              ),
-            ),
             const SizedBox(height: 4),
             Expanded(
               child: LayoutBuilder(
@@ -136,6 +126,7 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
                   final left   = _leftN   * cW;
                   final top    = _topN    * cH;
                   final width  = _widthN  * cW;
+                  final filter = _buildColorFilter(widget.settings.photoFilterId);
 
                   return Stack(
                     clipBehavior: Clip.none,
@@ -145,18 +136,20 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
-                            Image.asset(
-                              widget.appState.quote.imagePath,
+                            CachedNetworkImage(
+                              imageUrl: widget.appState.quote.imagePath,
+                              cacheManager: customCacheManager,
                               fit: BoxFit.cover,
                             ),
                             if (!widget.appState.isOriginalView) ...[
-                              if (widget.settings.photoFilterId != 'none')
+                              if (filter != null)
                                 Opacity(
                                   opacity: widget.settings.photoFilterIntensity,
                                   child: ColorFiltered(
-                                    colorFilter: _buildColorFilter(widget.settings.photoFilterId)!,
-                                    child: Image.asset(
-                                      widget.appState.quote.imagePath,
+                                    colorFilter: filter,
+                                    child: CachedNetworkImage(
+                                      imageUrl: widget.appState.quote.imagePath,
+                                      cacheManager: customCacheManager,
                                       fit: BoxFit.cover,
                                     ),
                                   ),
@@ -264,7 +257,6 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
 
   // ── app bar ───────────────────────────────────────────────────────────────
   Widget _buildAppBar() {
-    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -284,34 +276,43 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
               ),
             ),
           ),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: cs.primary),
-            onPressed: () {
-              final updated = widget.settings.copyWith(
-                cardLeftN:  _leftN,
-                cardTopN:   _topN,
-                cardWidthN: _widthN,
-                // Height is naturally wrapped now!
-              );
-              Navigator.of(context).pop(updated);
-            },
-            child: const Text(
-              'Uygula',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.16),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.check_rounded, color: Colors.greenAccent, size: 24),
+              tooltip: 'Uygula',
+              onPressed: () {
+                final updated = widget.settings.copyWith(
+                  cardLeftN:  _leftN,
+                  cardTopN:   _topN,
+                  cardWidthN: _widthN,
+                );
+                Navigator.of(context).pop(updated);
+              },
             ),
           ),
-          // Reset to defaults
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.white60),
-            onPressed: () {
-              final d = AppSettings.defaults();
-              setState(() {
-                _leftN   = d.cardLeftN;
-                _topN    = d.cardTopN;
-                _widthN  = d.cardWidthN;
-              });
-            },
-            child: const Text('Sıfırla', style: TextStyle(fontSize: 13)),
+          const SizedBox(width: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.10),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white24, width: 1),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.restore_rounded, color: Colors.white, size: 24),
+              tooltip: 'Sıfırla',
+              onPressed: () {
+                final d = AppSettings.defaults();
+                setState(() {
+                  _leftN   = d.cardLeftN;
+                  _topN    = d.cardTopN;
+                  _widthN  = d.cardWidthN;
+                });
+              },
+            ),
           ),
         ],
       ),

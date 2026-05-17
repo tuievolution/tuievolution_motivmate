@@ -10,6 +10,7 @@ import 'screens/home_screen.dart';
 import 'services/notification_service.dart';
 import 'services/quote_service.dart';
 import 'services/storage_service.dart';
+import 'services/billing_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,10 +27,14 @@ Future<void> main() async {
   final notificationService = NotificationService();
   await notificationService.init();
 
+  final billingService = BillingService();
+  await billingService.init();
+
   final appState = AppState(
     storageService: storageService,
     quoteService: quoteService,
     notificationService: notificationService,
+    billingService: billingService,
     initialSettings: initialSettings,
     initialQuote: initialQuote,
   );
@@ -37,19 +42,19 @@ Future<void> main() async {
   runApp(
     ChangeNotifierProvider(
       create: (_) => appState,
-      child: const MotivMateRoot(),
+      child: const MotivMoodRoot(),
     ),
   );
 }
 
-class MotivMateRoot extends StatefulWidget {
-  const MotivMateRoot({super.key});
+class MotivMoodRoot extends StatefulWidget {
+  const MotivMoodRoot({super.key});
 
   @override
-  State<MotivMateRoot> createState() => _MotivMateRootState();
+  State<MotivMoodRoot> createState() => _MotivMoodRootState();
 }
 
-class _MotivMateRootState extends State<MotivMateRoot>
+class _MotivMoodRootState extends State<MotivMoodRoot>
     with WidgetsBindingObserver {
   @override
   void initState() {
@@ -78,7 +83,7 @@ class _MotivMateRootState extends State<MotivMateRoot>
         themePresets.firstWhere((e) => e.id == appState.settings.themeId);
 
     return MaterialApp(
-      title: 'MotivMate',
+      title: 'MotivMood',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: preset.accentColor),
