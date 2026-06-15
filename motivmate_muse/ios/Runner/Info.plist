@@ -25,9 +25,9 @@
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>MotivMate olusturdugu gorselleri galerine kaydedebilmek icin izin ister.</string>
+	<string>MotivMood olusturdugu gorselleri galerine kaydedebilmek icin izin ister.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>MotivMate galeriye kaydedilen gorselleri yonetebilmek icin erisim ister.</string>
+	<string>MotivMood galeriye kaydedilen gorselleri yonetebilmek icin erisim ister.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

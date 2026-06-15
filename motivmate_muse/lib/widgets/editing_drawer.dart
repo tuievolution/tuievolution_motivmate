@@ -5,6 +5,7 @@ import '../app_state.dart';
 import '../models/app_settings.dart';
 import '../models/theme_presets.dart';
 import 'card_resizer_popup.dart';
+import 'text_settings_editor.dart';
 
 class EditingDrawer extends StatefulWidget {
   final AppState appState;
@@ -36,6 +37,8 @@ class _EditingDrawerState extends State<EditingDrawer> {
     widget.appState.updateSettingsTemporary(draft);
   }
 
+  String _l(String tr, String en) => draft.appLanguage == 'en' ? en : tr;
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -65,7 +68,7 @@ class _EditingDrawerState extends State<EditingDrawer> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Düzenle',
+                      _l('Düzenle', 'Edit'),
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -84,10 +87,10 @@ class _EditingDrawerState extends State<EditingDrawer> {
               ),
               const SizedBox(height: 12),
               TabBar(
-                tabs: const [
-                  Tab(text: 'Fotoğraf'),
-                  Tab(text: 'Kart'),
-                  Tab(text: 'Yazı'),
+                tabs: [
+                  Tab(text: _l('Fotoğraf', 'Photo')),
+                  Tab(text: _l('Kart', 'Card')),
+                  Tab(text: _l('Yazı', 'Text')),
                 ],
                 labelColor: cs.primary,
                 unselectedLabelColor: cs.onSurface.withValues(alpha: 0.6),
@@ -111,12 +114,14 @@ class _EditingDrawerState extends State<EditingDrawer> {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: cs.primary,
                         side: BorderSide(color: cs.primary),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       onPressed: () async {
                         widget.appState.updateSettingsTemporary(original);
                         if (context.mounted) Navigator.of(context).pop();
                       },
-                      child: const Text('İptal'),
+                      child: Text(_l('İptal', 'Cancel'), style: const TextStyle(fontWeight: FontWeight.w600)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -125,16 +130,18 @@ class _EditingDrawerState extends State<EditingDrawer> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: cs.primary,
                         foregroundColor: cs.onPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       onPressed: () async {
                         draft = draft.copyWith(showCard: widget.appState.isQuoteVisible);
                         widget.appState.updateSettingsTemporary(draft);
                         await widget.appState.persistSettings(
-                          rescheduleNotifications: false,
+                          rescheduleNotifications: true,
                         );
                         if (context.mounted) Navigator.of(context).pop();
                       },
-                      child: const Text('Uygula'),
+                      child: Text(_l('Uygula', 'Apply'), style: const TextStyle(fontWeight: FontWeight.w600)),
                     ),
                   ),
                 ],
@@ -148,23 +155,21 @@ class _EditingDrawerState extends State<EditingDrawer> {
   }
 
   Widget _buildPhotoTab(ThemePreset preset) {
-    const filters = <String, String>{
-      'none': 'Varsayılan',
-      'sepia': 'Sepya',
-      'mono': 'Siyah Beyaz',
-      'vintage': 'Vintage',
-      'warm': 'Sıcak',
-      'cool': 'Soğuk',
-      'cinematic': 'Sinematik',
-      'rosy': 'Pembe Ton',
-      'faded': 'Soluk',
+    final filters = <String, Map<String, String>>{
+      'none':    {'tr': 'Varsayılan',   'en': 'Default'},
+      'sepia':   {'tr': 'Sepya',        'en': 'Sepia'},
+      'mono':    {'tr': 'Siyah Beyaz',  'en': 'Black & White'},
+      'vintage': {'tr': 'Vintage',      'en': 'Vintage'},
+      'warm':    {'tr': 'Sıcak',        'en': 'Warm'},
+      'cool':    {'tr': 'Soğuk',        'en': 'Cool'},
+      'rosy':    {'tr': 'Pembe Ton',    'en': 'Rosy'},
     };
 
     return ListView(
       children: [
-        const ListTile(
+        ListTile(
           contentPadding: EdgeInsets.zero,
-          title: Text('Blurluk'),
+          title: Text(_l('Blurluk', 'Blur Intensity')),
         ),
         Slider(
           value: draft.blurSigma,
@@ -177,9 +182,9 @@ class _EditingDrawerState extends State<EditingDrawer> {
           },
         ),
         const SizedBox(height: 8),
-        const ListTile(
+        ListTile(
           contentPadding: EdgeInsets.zero,
-          title: Text('Fotoğraf Filtresi'),
+          title: Text(_l('Fotoğraf Filtresi', 'Photo Filter')),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -189,7 +194,7 @@ class _EditingDrawerState extends State<EditingDrawer> {
                 .map(
                   (e) => DropdownMenuItem(
                     value: e.key,
-                    child: Text(e.value),
+                    child: Text(draft.appLanguage == 'en' ? e.value['en']! : e.value['tr']!),
                   ),
                 )
                 .toList(),
@@ -199,9 +204,10 @@ class _EditingDrawerState extends State<EditingDrawer> {
             },
           ),
         ),
-        const ListTile(
+        const SizedBox(height: 12),
+        ListTile(
           contentPadding: EdgeInsets.zero,
-          title: Text('Filtre Yoğunluğu'),
+          title: Text(_l('Filtre Yoğunluğu', 'Filter Intensity')),
         ),
         Slider(
           value: draft.photoFilterIntensity,
@@ -224,8 +230,8 @@ class _EditingDrawerState extends State<EditingDrawer> {
         // ── Card background toggle ──────────────────────────────────────
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Kart gösterilsin'),
-          subtitle: const Text('Kapalıyken yazı görünür kalır'),
+          title: Text(_l('Kartı Göster', 'Show Card')),
+          subtitle: Text(_l('Kapalıyken yazı görünür kalır', 'Text remains visible when closed')),
           activeThumbColor: cs.primary,
           value: draft.showCardBackground,
           onChanged: (v) {
@@ -238,7 +244,7 @@ class _EditingDrawerState extends State<EditingDrawer> {
         // ── Card background COLOR — collapsible ─────────────────────────
         _colorExpansionTile(
           cs: cs,
-          title: 'Kart Arka Plan Rengi',
+          title: _l('Kart Arka Plan Rengi', 'Card Background Color'),
           hexValue: draft.cardBackgroundColorValue,
           pickerColor: Color(draft.cardBackgroundColorValue),
           enableAlpha: true,
@@ -249,7 +255,7 @@ class _EditingDrawerState extends State<EditingDrawer> {
         // ── Overlay opacity ─────────────────────────────────────────────
         ListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Arka plan opaklığı'),
+          title: Text(_l('Arka plan opaklığı', 'Overlay Opacity')),
           subtitle: Text('${(draft.backgroundOverlayOpacity * 100).toStringAsFixed(0)}%'),
         ),
         Slider(
@@ -263,7 +269,7 @@ class _EditingDrawerState extends State<EditingDrawer> {
         // ── Card opacity ────────────────────────────────────────────────
         ListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Kart opaklığı'),
+          title: Text(_l('Kart opaklığı', 'Card Opacity')),
           subtitle: Text('${(draft.cardOpacity * 100).toStringAsFixed(0)}%'),
         ),
         Slider(
@@ -280,6 +286,8 @@ class _EditingDrawerState extends State<EditingDrawer> {
           style: ElevatedButton.styleFrom(
             backgroundColor: cs.primary,
             foregroundColor: cs.onPrimary,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           onPressed: () async {
             final updated = await Navigator.of(context).push<AppSettings>(
@@ -296,12 +304,7 @@ class _EditingDrawerState extends State<EditingDrawer> {
             }
           },
           icon: const Icon(Icons.crop_free),
-          label: const Text('Kart Konumunu Düzenle'),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Arayüzde sürükleyerek kartın yerini ayarlayabilirsin.',
-          style: TextStyle(color: cs.onSurface.withValues(alpha: 0.55), fontSize: 12),
+          label: Text(_l('Kart Konumunu Düzenle', 'Adjust Card Position')),
         ),
         const SizedBox(height: 20),
       ],
@@ -309,72 +312,18 @@ class _EditingDrawerState extends State<EditingDrawer> {
   }
 
   Widget _buildTextTab(ColorScheme cs) {
-    const fonts = <String>[
-      'Roboto',
-      'Oswald',
-      'Lobster',
-      'Pacifico',
-      'Caveat',
-      'Playfair Display',
-      'Merriweather',
-      'Nunito',
-      'Raleway',
-      'Lora',
-    ];
-
-    return ListView(
-      children: [
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Punto (yazı boyutu)'),
-          subtitle: Text(draft.fontSize.toStringAsFixed(0)),
-        ),
-        Slider(
-          value: draft.fontSize,
-          min: 18,
-          max: 42,
-          divisions: 48,
-          label: draft.fontSize.toStringAsFixed(0),
-          onChanged: (v) => _updateDraft(draft.copyWith(fontSize: v)),
-        ),
-        const SizedBox(height: 10),
-
-        // ── Text COLOR — collapsible ────────────────────────────────────
-        _colorExpansionTile(
-          cs: cs,
-          title: 'Yazı rengi',
-          hexValue: draft.textColorValue,
-          pickerColor: Color(draft.textColorValue),
-          enableAlpha: false,
-          onColorChanged: (c) =>
-              _updateDraft(draft.copyWith(textColorValue: c.toARGB32())),
-        ),
-
-        const SizedBox(height: 10),
-        const ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text('Font'),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: DropdownButtonFormField<String>(
-            initialValue: draft.fontFamily,
-            items: fonts
-                .map(
-                  (f) => DropdownMenuItem(
-                    value: f,
-                    child: Text(f),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) {
-              if (value == null) return;
-              _updateDraft(draft.copyWith(fontFamily: value));
-            },
-          ),
-        ),
-        const SizedBox(height: 20),
-      ],
+    final quote = widget.appState.quote;
+    final lang = draft.appLanguage;
+    return SingleChildScrollView(
+      child: TextSettingsEditor(
+        initialSettings: draft,
+        sampleText: quote.text(lang),
+        sampleAuthor: quote.author(lang),
+        language: lang,
+        onChanged: (updated) {
+          _updateDraft(updated);
+        },
+      ),
     );
   }
 
@@ -402,8 +351,6 @@ class _EditingDrawerState extends State<EditingDrawer> {
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
       childrenPadding: EdgeInsets.zero,
-      // Collapsed by default so user doesn't accidentally change colour
-      // while scrolling
       initiallyExpanded: false,
       leading: swatch,
       title: Text(title),

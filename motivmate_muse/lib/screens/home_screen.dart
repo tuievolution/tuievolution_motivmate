@@ -11,6 +11,8 @@ import '../models/theme_presets.dart';
 import '../widgets/editing_drawer.dart';
 import '../widgets/quote_card.dart';
 import '../widgets/settings_drawer.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../cache_limit.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,7 +22,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Controller must live as long as the widget — NOT created in build()
   final ScreenshotController _screenshotController = ScreenshotController();
 
   ColorFilter? _buildColorFilter(String id) {
@@ -40,40 +41,86 @@ class _HomeScreenState extends State<HomeScreen> {
         return const ColorFilter.mode(Color(0xFFFF9800), BlendMode.softLight);
       case 'cool':
         return const ColorFilter.mode(Color(0xFF4264FB), BlendMode.softLight);
-      case 'cinematic':
-        return const ColorFilter.mode(Color(0xFF1B1B1B), BlendMode.darken);
       case 'rosy':
         return const ColorFilter.mode(Color(0xFFE91E63), BlendMode.softLight);
-      case 'faded':
-        return const ColorFilter.mode(Color(0xFFCCCCCC), BlendMode.lighten);
       case 'none':
       default:
         return null;
     }
   }
 
+  Future<void> _changeImageAd(BuildContext scaffoldCtx, AppState appState) async {
+    final canWatch = await appState.canWatchAd();
+    if (!scaffoldCtx.mounted) return;
+
+    if (canWatch) {
+      ads.RewardedAd.load(
+        adUnitId: 'ca-app-pub-3940256099942544/5224354917',
+        request: const ads.AdRequest(),
+        rewardedAdLoadCallback: ads.RewardedAdLoadCallback(
+          onAdLoaded: (ad) {
+            ad.show(onUserEarnedReward: (ad, reward) {
+              appState.incrementAdWatchAndRefresh();
+            });
+          },
+          onAdFailedToLoad: (error) {
+            if (!scaffoldCtx.mounted) return;
+            ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
+              const SnackBar(content: Text('Reklam yüklenemedi. Lütfen tekrar deneyin.')),
+            );
+          },
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
+        SnackBar(
+          content: Text(appState.settings.appLanguage == 'en' ? 'Daily limit reached (3/3).' : 'Günlük resim değiştirme limiti doldu (3/3).'),
+        ),
+      );
+    }
+  }
+
   Future<void> _saveCurrentView(BuildContext scaffoldCtx, AppState appState, ThemePreset preset) async {
-    ads.RewardedAd.load(
-      adUnitId: 'ca-app-pub-3940256099942544/5224354917', // Test Ad Unit ID
-      request: const ads.AdRequest(),
-      rewardedAdLoadCallback: ads.RewardedAdLoadCallback(
-        onAdLoaded: (ad) {
-          ad.show(onUserEarnedReward: (ad, reward) {
-            _captureAndSave(scaffoldCtx, appState, preset);
-          });
-        },
-        onAdFailedToLoad: (error) {
-          _captureAndSave(scaffoldCtx, appState, preset);
-        },
-      ),
-    );
+    final bool isPremium = appState.billingService.isPremium;
+
+    Future<void> executeCapture() async {
+      bool wasVisible = appState.isQuoteVisible;
+      if (!wasVisible) {
+        appState.setQuoteVisibility(true);
+        await Future.delayed(const Duration(milliseconds: 150));
+      }
+      if (!scaffoldCtx.mounted) return;
+      await _captureAndSave(scaffoldCtx, appState, preset);
+      if (!wasVisible) {
+        appState.setQuoteVisibility(false);
+      }
+    }
+
+    if (isPremium) {
+      await executeCapture();
+    } else {
+      ads.RewardedAd.load(
+        adUnitId: 'ca-app-pub-3940256099942544/5224354917',
+        request: const ads.AdRequest(),
+        rewardedAdLoadCallback: ads.RewardedAdLoadCallback(
+          onAdLoaded: (ad) {
+            ad.show(onUserEarnedReward: (ad, reward) {
+              executeCapture();
+            });
+          },
+          onAdFailedToLoad: (error) {
+            executeCapture();
+          },
+        ),
+      );
+    }
   }
 
   Future<void> _captureAndSave(BuildContext scaffoldCtx, AppState appState, ThemePreset preset) async {
     try {
       final bytes = await _screenshotController.capture(
         delay: const Duration(milliseconds: 100),
-        pixelRatio: 3.0, // High quality, crisp text
+        pixelRatio: 3.0,
       );
 
       if (bytes == null) {
@@ -81,6 +128,8 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       final hasAccess = await Gal.requestAccess(toAlbum: true);
+      if (!scaffoldCtx.mounted) return;
+
       if (hasAccess) {
         await Gal.putImageBytes(bytes, album: 'MotivMood');
         if (!scaffoldCtx.mounted) return;
@@ -88,7 +137,6 @@ class _HomeScreenState extends State<HomeScreen> {
           const SnackBar(content: Text('✓ Görsel galeriye kaydedildi.')),
         );
       } else {
-        if (!scaffoldCtx.mounted) return;
         ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
           const SnackBar(content: Text('Galeri erişimi reddedildi.')),
         );
@@ -119,8 +167,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 final showCard = !appState.isOriginalView && appState.isQuoteVisible;
                 final showCardBg = appState.settings.showCardBackground;
 
-                final backgroundImage = Image.asset(
-                  appState.quote.imagePath,
+                final backgroundImage = CachedNetworkImage(
+                  imageUrl: appState.quote.imagePath,
+                  cacheManager: customCacheManager,
                   fit: BoxFit.cover,
                 );
 
@@ -206,24 +255,44 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
 
                             // ── Quote Card ────────────────────────────────────────
-                            if (showCard)
-                              Positioned(
-                                left: appState.settings.cardLeftN.clamp(0.0, 1.0) * constraints.maxWidth,
-                                top:  appState.settings.cardTopN.clamp(0.0, 1.0)  * constraints.maxHeight,
-                                width:  appState.settings.cardWidthN.clamp(0.01, 1.0) * constraints.maxWidth,
-                                // height gracefully omitted so children determine height naturally
-                                child: QuoteCard(
-                                  text: appState.quote.text(appState.settings.appLanguage),
-                                  author: appState.quote.author(appState.settings.appLanguage),
-                                  cardBackgroundColor: Color(appState.settings.cardBackgroundColorValue),
-                                  quoteTextColor: Color(appState.settings.textColorValue),
-                                  opacity: appState.settings.cardOpacity,
-                                  fontSize: appState.settings.fontSize,
-                                  fontFamily: appState.settings.fontFamily,
-                                  showBackground: showCardBg,
-                                  fillContainer: true,
-                                ),
-                              ),
+                            if (showCard) ...[
+                              (() {
+                                final quoteText = appState.quote.text(appState.settings.appLanguage);
+                                final quoteAuthor = appState.quote.author(appState.settings.appLanguage);
+
+                                double effectiveFontSize = appState.settings.fontSize;
+                                double effectiveTopN = appState.settings.cardTopN;
+
+                                // Dynamically shrink and shift top position if quote text is very long
+                                final textLen = quoteText.length;
+                                if (textLen > 100) {
+                                  final shrinkFactor = ((textLen - 100) / 160.0).clamp(0.0, 0.40);
+                                  effectiveFontSize = (effectiveFontSize * (1.0 - shrinkFactor)).clamp(10.0, 28.0);
+
+                                  final shiftFactor = shrinkFactor * 0.18;
+                                  effectiveTopN = (effectiveTopN - shiftFactor).clamp(0.04, 0.95);
+                                }
+
+                                return Positioned(
+                                  left: appState.settings.cardLeftN.clamp(0.0, 1.0) * constraints.maxWidth,
+                                  top:  effectiveTopN.clamp(0.0, 1.0)  * constraints.maxHeight,
+                                  width:  appState.settings.cardWidthN.clamp(0.01, 1.0) * constraints.maxWidth,
+                                  child: QuoteCard(
+                                    text: quoteText,
+                                    author: quoteAuthor,
+                                    cardBackgroundColor: Color(appState.settings.cardBackgroundColorValue),
+                                    quoteTextColor: Color(appState.settings.textColorValue),
+                                    effectColor: Color(appState.settings.effectColorValue),
+                                    opacity: appState.settings.cardOpacity,
+                                    fontSize: effectiveFontSize,
+                                    fontFamily: appState.settings.fontFamily,
+                                    textEffectId: appState.settings.textEffectId,
+                                    showBackground: showCardBg,
+                                    fillContainer: true,
+                                  ),
+                                );
+                              }()),
+                            ],
                           ],
                         ),
                       ),
@@ -285,6 +354,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                 icon: Icons.download,
                                 accentColor: preset.accentColor,
                                 onTap: () => _saveCurrentView(scaffoldContext, appState, preset),
+                              ),
+                              const SizedBox(width: 10),
+                              _ActionButton(
+                                icon: Icons.shuffle,
+                                onTap: () => _changeImageAd(scaffoldContext, appState),
                               ),
                               const SizedBox(width: 10),
                               _ActionButton(

@@ -8,7 +8,7 @@ import '../models/app_settings.dart';
 
 class NotificationService {
   static const _channelId = 'motivmate_channel';
-  static const _channelName = 'MotivMate';
+  static const _channelName = 'MotivMood';
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -20,16 +20,13 @@ class NotificationService {
     if (_tzConfigured) return;
     tzdata.initializeTimeZones();
     try {
-      // getLocalTimezone() returns TimezoneInfo in v5.0.2; use .identifier for the IANA string.
       final localTz = await FlutterTimezone.getLocalTimezone();
       try {
         tz.setLocalLocation(tz.getLocation(localTz.identifier));
       } catch (_) {
-        // Cihaz zaman dilimi tanınmadıysa Türkiye'yi varsayılan yap (UTC+3)
         tz.setLocalLocation(tz.getLocation('Europe/Istanbul'));
       }
     } catch (_) {
-      // Platform desteklemiyorsa Türkiye'yi varsayılan yap (UTC+3)
       tz.setLocalLocation(tz.getLocation('Europe/Istanbul'));
     }
     _tzConfigured = true;
@@ -40,19 +37,17 @@ class NotificationService {
     await _configureTimezoneSafely();
 
     const androidInit =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('@mipmap/motivmoodlogo');
     final iosInit = DarwinInitializationSettings();
     final initSettings = InitializationSettings(android: androidInit, iOS: iosInit);
 
     await _plugin.initialize(settings: initSettings);
 
-    // Android 13+ needs runtime permission for notifications.
     final androidPlugin = _plugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
     await androidPlugin?.requestNotificationsPermission();
 
-    // Android 12+ needs exact alarm permission for zonedSchedule.
     await androidPlugin?.requestExactAlarmsPermission();
 
     _initialized = true;
@@ -62,7 +57,7 @@ class NotificationService {
     const androidDetails = AndroidNotificationDetails(
       _channelId,
       _channelName,
-      channelDescription: 'MotivMate bildirimi',
+      channelDescription: 'MotivMood bildirimi',
       importance: Importance.high,
       priority: Priority.high,
     );
@@ -90,46 +85,11 @@ class NotificationService {
     required List<Quote> quotesForSchedule,
   }) async {
     await _configureTimezoneSafely();
-    // For MVP: pre-schedule next occurrences with already chosen quotes.
     await _plugin.cancelAll();
 
-    const maxNotifications = 48; // safety cap
     final details = _notificationDetails();
     final now = tz.TZDateTime.now(tz.local);
 
-    if (settings.barTiming == BarTiming.intervalMinutes) {
-      final interval = settings.barIntervalMinutes.clamp(5, 720);
-      final occurrences =
-          (24 * 60 / interval).floor().clamp(1, maxNotifications);
-      for (var i = 0; i < occurrences; i++) {
-        final when = now.add(Duration(minutes: i * interval));
-        final quote = quotesForSchedule.isNotEmpty
-            ? quotesForSchedule[i % quotesForSchedule.length]
-            : quotesForSchedule.first;
-        try {
-          await _plugin.zonedSchedule(
-            id: i + 1000,
-            title: 'MotivMate',
-            body: '"${quote.text(settings.appLanguage)}"',
-            scheduledDate: when,
-            notificationDetails: details,
-            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          );
-        } catch (_) {
-          await _plugin.zonedSchedule(
-            id: i + 1000,
-            title: 'MotivMate',
-            body: '"${quote.text(settings.appLanguage)}"',
-            scheduledDate: when,
-            notificationDetails: details,
-            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          );
-        }
-      }
-      return;
-    }
-
-    // Bar time-of-day mode (daily).
     if (settings.barTiming == BarTiming.timeOfDay) {
       final targetMinutes = settings.barTimeOfDayMinutes.clamp(0, 24 * 60 - 1);
       final hour = targetMinutes ~/ 60;
@@ -153,7 +113,7 @@ class NotificationService {
         try {
           await _plugin.zonedSchedule(
             id: day + 2000,
-            title: 'MotivMate',
+            title: 'MotivMood',
             body: '"${quote.text(settings.appLanguage)}"',
             scheduledDate: date,
             notificationDetails: details,
@@ -162,7 +122,7 @@ class NotificationService {
         } catch (_) {
           await _plugin.zonedSchedule(
             id: day + 2000,
-            title: 'MotivMate',
+            title: 'MotivMood',
             body: '"${quote.text(settings.appLanguage)}"',
             scheduledDate: date,
             notificationDetails: details,
@@ -173,4 +133,3 @@ class NotificationService {
     }
   }
 }
-

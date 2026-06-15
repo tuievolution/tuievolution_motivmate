@@ -65,20 +65,34 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           children: [
-            const SizedBox(height: 10),
-            const Text(
-              'Ayarlar',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.asset(
+                    'assets/motivmoodlogo.png',
+                    width: 36,
+                    height: 36,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  draft.appLanguage == 'en' ? 'Settings' : 'Ayarlar',
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             ExpansionTile(
               leading: const Icon(Icons.language),
-              title: const Text('Kart Dili'),
-              subtitle: const Text('Alıntı ve arayüz dili seçimi'),
+              shape: const Border(),
+              collapsedShape: const Border(),
+              title: Text(draft.appLanguage == 'en' ? 'App Language' : 'Uygulama Dili'),
               initiallyExpanded: false,
               children: [
                 ListTile(
-                  title: const Text('Seçili Dil'),
+                  title: Text(draft.appLanguage == 'en' ? 'Selected Language' : 'Seçili Dil'),
                   trailing: DropdownButton<String>(
                     value: draft.appLanguage,
                     items: const [
@@ -97,10 +111,12 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                 ),
               ],
             ),
-            const SizedBox(height: 4),
+            const Divider(),
             ExpansionTile(
               leading: const Icon(Icons.palette_outlined),
-              title: const Text('Tema Ayarları'),
+              shape: const Border(),
+              collapsedShape: const Border(),
+              title: Text(draft.appLanguage == 'en' ? 'Theme Settings' : 'Tema Ayarları'),
               initiallyExpanded: false,
               children: [
                 const SizedBox(height: 8),
@@ -119,208 +135,85 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                 const SizedBox(height: 8),
               ],
             ),
+            const Divider(),
             ExpansionTile(
               leading: const Icon(Icons.notifications_outlined),
-              title: const Text('Bildirim Ayarları'),
+              shape: const Border(),
+              collapsedShape: const Border(),
+              title: Text(draft.appLanguage == 'en' ? 'Notification Settings' : 'Bildirim Ayarları'),
               initiallyExpanded: false,
               children: [
                 const SizedBox(height: 6),
                 const SizedBox(height: 6),
                 SwitchListTile(
-                  title: const Text('Bar Bildirimi (Sistem)'),
+                  title: Text(draft.appLanguage == 'en' ? 'Bar Notification' : 'Bar Bildirimi'),
                   value: draft.barNotificationsEnabled,
                   onChanged: (v) async {
                     setState(() => draft = draft.copyWith(barNotificationsEnabled: v));
                     await _commit(rescheduleNotifications: true);
                   },
                 ),
-                SwitchListTile(
-                  title: const Text('Uygulama açılışında Kart'),
-                  subtitle: const Text(
-                    'UYARI: Eğer cihazınızda alarm çalıyorsa, bu kart alarmdan sonra görünecektir.',
-                    style: TextStyle(fontSize: 12, color: Colors.orange),
-                  ),
-                  value: draft.popupOnOpenEnabled,
-                  onChanged: (v) async {
-                    setState(() => draft = draft.copyWith(popupOnOpenEnabled: v));
-                    await _commit(rescheduleNotifications: true);
-                  },
-                ),
                 const SizedBox(height: 6),
                 if (draft.barNotificationsEnabled) ...[
-                  const Divider(height: 20),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4),
-                    child: Text(
-                      'Bar zamanlaması',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  RadioGroup<BarTiming>(
-                    groupValue: draft.barTiming,
-                    onChanged: (v) {
-                      if (v == null) return;
-                      setState(() => draft = draft.copyWith(barTiming: v));
-                      _commit(rescheduleNotifications: true);
+                  ListTile(
+                    dense: true,
+                    title: Text(draft.appLanguage == 'en' ? 'Daily Notification Time' : 'Günlük Bildirim Saati'),
+                    subtitle: Text(_formatMinutes(draft.barTimeOfDayMinutes)),
+                    trailing: const Icon(Icons.schedule),
+                    onTap: () async {
+                      final picked = await _pickTimeMinutes(
+                        context,
+                        draft.barTimeOfDayMinutes,
+                      );
+                      if (picked == null) return;
+                      setState(
+                        () => draft = draft.copyWith(
+                          barTiming: BarTiming.timeOfDay,
+                          barTimeOfDayMinutes: picked
+                        ),
+                      );
+                      await _commit(rescheduleNotifications: true);
                     },
-                    child: Column(
-                      children: [
-                        RadioListTile<BarTiming>(
-                          value: BarTiming.intervalMinutes,
-                          title: const Text('Zaman aralığı (dakika)'),
-                        ),
-                        if (draft.barTiming == BarTiming.intervalMinutes)
-                          Column(
-                            children: [
-                              Slider(
-                                value: draft.barIntervalMinutes.toDouble(),
-                                min: 15,
-                                max: 240,
-                                divisions: 45,
-                                label: '${draft.barIntervalMinutes} dk',
-                                onChanged: (v) {
-                                  setState(
-                                    () => draft = draft.copyWith(
-                                      barIntervalMinutes: v.round(),
-                                    ),
-                                  );
-                                },
-                                onChangeEnd: (_) async {
-                                  await _commit(rescheduleNotifications: true);
-                                },
-                              ),
-                              const SizedBox(height: 8),
-                            ],
-                          ),
-                        RadioListTile<BarTiming>(
-                          value: BarTiming.timeOfDay,
-                          title: const Text('Günlük saat'),
-                        ),
-                        if (draft.barTiming == BarTiming.timeOfDay)
-                          ListTile(
-                            dense: true,
-                            title: const Text('Bildirim saati'),
-                            subtitle: Text(_formatMinutes(draft.barTimeOfDayMinutes)),
-                            trailing: const Icon(Icons.schedule),
-                            onTap: () async {
-                              final picked = await _pickTimeMinutes(
-                                context,
-                                draft.barTimeOfDayMinutes,
-                              );
-                              if (picked == null) return;
-                              setState(
-                                () => draft = draft.copyWith(barTimeOfDayMinutes: picked),
-                              );
-                              await _commit(rescheduleNotifications: true);
-                            },
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-                if (draft.popupOnOpenEnabled) ...[
-                  const Divider(height: 20),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4),
-                    child: Text(
-                      'Kart zamanlaması',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  RadioGroup<PopupTiming>(
-                    groupValue: draft.popupTiming,
-                    onChanged: (v) {
-                      if (v == null) return;
-                      setState(() => draft = draft.copyWith(popupTiming: v));
-                    },
-                    child: Column(
-                      children: [
-                        RadioListTile<PopupTiming>(
-                          value: PopupTiming.immediate,
-                          title: const Text('Uygulama açılır açılmaz'),
-                        ),
-                        RadioListTile<PopupTiming>(
-                          value: PopupTiming.timeOfDay,
-                          title: const Text('Belirli saat'),
-                        ),
-                        if (draft.popupTiming == PopupTiming.timeOfDay)
-                          ListTile(
-                            dense: true,
-                            title: const Text('Kart saati'),
-                            subtitle: Text(_formatMinutes(draft.popupTimeOfDayMinutes)),
-                            trailing: const Icon(Icons.schedule),
-                            onTap: () async {
-                              final picked = await _pickTimeMinutes(
-                                context,
-                                draft.popupTimeOfDayMinutes,
-                              );
-                              if (picked == null) return;
-                              setState(
-                                () => draft = draft.copyWith(popupTimeOfDayMinutes: picked),
-                              );
-                              await _commit(rescheduleNotifications: false);
-                            },
-                          ),
-                        RadioListTile<PopupTiming>(
-                          value: PopupTiming.betweenHours,
-                          title: const Text('Aralık saatler'),
-                        ),
-                        if (draft.popupTiming == PopupTiming.betweenHours)
-                          Column(
-                            children: [
-                              ListTile(
-                                dense: true,
-                                title: const Text('Başlangıç'),
-                                subtitle: Text(
-                                  _formatMinutes(draft.popupBetweenStartMinutes),
-                                ),
-                                trailing: const Icon(Icons.schedule),
-                                onTap: () async {
-                                  final picked = await _pickTimeMinutes(
-                                    context,
-                                    draft.popupBetweenStartMinutes,
-                                  );
-                                  if (picked == null) return;
-                                  setState(
-                                    () => draft = draft.copyWith(
-                                      popupBetweenStartMinutes: picked,
-                                    ),
-                                  );
-                                  await _commit(rescheduleNotifications: false);
-                                },
-                              ),
-                              ListTile(
-                                dense: true,
-                                title: const Text('Bitiş'),
-                                subtitle: Text(
-                                  _formatMinutes(draft.popupBetweenEndMinutes),
-                                ),
-                                trailing: const Icon(Icons.schedule),
-                                onTap: () async {
-                                  final picked = await _pickTimeMinutes(
-                                    context,
-                                    draft.popupBetweenEndMinutes,
-                                  );
-                                  if (picked == null) return;
-                                  setState(
-                                    () => draft = draft.copyWith(
-                                      popupBetweenEndMinutes: picked,
-                                    ),
-                                  );
-                                  await _commit(rescheduleNotifications: false);
-                                },
-                              ),
-                            ],
-                          ),
-                      ],
-                    ),
                   ),
                 ],
                 const SizedBox(height: 12),
               ],
             ),
+            const Divider(),
+            if (!_app.billingService.isPremium) ...[
+              ListTile(
+                leading: const Icon(Icons.star_border),
+                title: Text(draft.appLanguage == 'en' ? 'Subscribe' : 'Abone Ol'),
+                subtitle: Text(draft.appLanguage == 'en' ? 'Remove ads & limits' : 'Reklamları ve sınırları kaldır'),
+                onTap: () {
+                  showDialog(context: context, builder: (ctx) {
+                    return AlertDialog(
+                      title: Text(draft.appLanguage == 'en' ? 'Premium Subscription' : 'Premium Abonelik'),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ListTile(
+                            title: Text(draft.appLanguage == 'en' ? 'Monthly' : 'Aylık'),
+                            onTap: () {
+                              _app.billingService.buyProduct('base_plan_aylik');
+                              Navigator.pop(ctx);
+                            },
+                          ),
+                          ListTile(
+                            title: Text(draft.appLanguage == 'en' ? 'Yearly' : 'Yıllık'),
+                            onTap: () {
+                              _app.billingService.buyProduct('base_plan_yillik');
+                              Navigator.pop(ctx);
+                            },
+                          )
+                        ]
+                      )
+                    );
+                  });
+                },
+              ),
+              const Divider(),
+            ],
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerLeft,
@@ -329,7 +222,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                   Navigator.of(context).pop();
                 },
                 icon: const Icon(Icons.close),
-                label: const Text('Kapat'),
+                label: Text(draft.appLanguage == 'en' ? 'Close' : 'Kapat'),
               ),
             ),
             const SizedBox(height: 16),
