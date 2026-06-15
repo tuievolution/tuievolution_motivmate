@@ -156,12 +156,14 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
                                 ),
                               if (widget.settings.blurSigma > 0)
                                 Positioned.fill(
-                                  child: BackdropFilter(
-                                    filter: ImageFilter.blur(
-                                      sigmaX: widget.settings.blurSigma,
-                                      sigmaY: widget.settings.blurSigma,
+                                  child: ClipRect(
+                                    child: BackdropFilter(
+                                      filter: ImageFilter.blur(
+                                        sigmaX: widget.settings.blurSigma,
+                                        sigmaY: widget.settings.blurSigma,
+                                      ),
+                                      child: Container(color: Colors.transparent),
                                     ),
-                                    child: Container(color: Colors.transparent),
                                   ),
                                 ),
                               Positioned.fill(

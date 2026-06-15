@@ -48,12 +48,6 @@ class TextSettingsEditor extends StatefulWidget {
   /// Called in real-time when any value changes.
   final void Function(AppSettings updated) onChanged;
 
-  /// Called when the user presses "Uygula" / "Apply".
-  final void Function(AppSettings updated) onConfirm;
-
-  /// Called when the user presses "İptal" / "Cancel".
-  final VoidCallback onCancel;
-
   const TextSettingsEditor({
     super.key,
     required this.initialSettings,
@@ -61,8 +55,6 @@ class TextSettingsEditor extends StatefulWidget {
     required this.sampleAuthor,
     required this.language,
     required this.onChanged,
-    required this.onConfirm,
-    required this.onCancel,
   });
 
   @override
@@ -321,43 +313,7 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
             quotePadding: 12,
           ),
         ),
-
-        const SizedBox(height: 16),
-
-        // ── Confirm / Cancel Buttons ──────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white54),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: widget.onCancel,
-                  child: Text(_l('İptal', 'Cancel'), style: const TextStyle(fontWeight: FontWeight.w600)),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: () => widget.onConfirm(_draft),
-                  child: Text(_l('Uygula', 'Apply'), style: const TextStyle(fontWeight: FontWeight.w600)),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
       ],
     );
   }
@@ -397,7 +353,7 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
       );
     }
 
-    // 16th item: custom color picker
+    // 16th item: custom color picker (gökkuşağı renginde / SweepGradient)
     final customColor = isTextColor ? _customTextColor : _customEffectColor;
     final isCustomSelected = customColor != null && current.toARGB32() == customColor.toARGB32();
     
@@ -408,8 +364,22 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: customColor ?? Colors.transparent,
             shape: BoxShape.circle,
+            gradient: isCustomSelected
+                ? null
+                : const SweepGradient(
+                    colors: [
+                      Colors.red,
+                      Colors.orange,
+                      Colors.yellow,
+                      Colors.green,
+                      Colors.blue,
+                      Colors.indigo,
+                      Colors.purple,
+                      Colors.red,
+                    ],
+                  ),
+            color: isCustomSelected ? customColor : null,
             border: Border.all(
               color: isCustomSelected ? Colors.blueAccent : Colors.white60,
               width: isCustomSelected ? 2.5 : 1.5,
@@ -418,11 +388,9 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
                 ? [BoxShadow(color: Colors.blueAccent.withValues(alpha: 0.4), blurRadius: 6)]
                 : null,
           ),
-          child: customColor == null
-              ? const Icon(Icons.colorize_rounded, size: 16, color: Colors.white)
-              : isCustomSelected
-                  ? null
-                  : const Icon(Icons.edit, size: 12, color: Colors.white70),
+          child: isCustomSelected
+              ? const Icon(Icons.check, size: 14, color: Colors.white)
+              : const Icon(Icons.colorize_rounded, size: 16, color: Colors.white),
         ),
       ),
     );

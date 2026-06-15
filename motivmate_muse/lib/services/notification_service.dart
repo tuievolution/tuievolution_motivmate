@@ -37,7 +37,7 @@ class NotificationService {
     await _configureTimezoneSafely();
 
     const androidInit =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('@mipmap/motivmoodlogo');
     final iosInit = DarwinInitializationSettings();
     final initSettings = InitializationSettings(android: androidInit, iOS: iosInit);
 

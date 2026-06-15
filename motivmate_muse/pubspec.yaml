@@ -74,6 +74,7 @@ flutter:
 
   assets:
     - assets/data/master_quotes_turkish.csv
+    - assets/motivmoodlogo.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

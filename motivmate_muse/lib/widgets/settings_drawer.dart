@@ -65,12 +65,25 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           children: [
-            const SizedBox(height: 10),
-            Text(
-              draft.appLanguage == 'en' ? 'Settings' : 'Ayarlar',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.asset(
+                    'assets/motivmoodlogo.png',
+                    width: 36,
+                    height: 36,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  draft.appLanguage == 'en' ? 'Settings' : 'Ayarlar',
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             ExpansionTile(
               leading: const Icon(Icons.language),
               shape: const Border(),
@@ -142,15 +155,6 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                 ),
                 const SizedBox(height: 6),
                 if (draft.barNotificationsEnabled) ...[
-                  const Divider(height: 20),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4),
-                    child: Text(
-                      draft.appLanguage == 'en' ? 'Bar timing' : 'Bar zamanlaması',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
                   ListTile(
                     dense: true,
                     title: Text(draft.appLanguage == 'en' ? 'Daily Notification Time' : 'Günlük Bildirim Saati'),
