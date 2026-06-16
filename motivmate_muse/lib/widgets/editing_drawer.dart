@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../app_state.dart';
 import '../models/app_settings.dart';
 import '../models/theme_presets.dart';
 import 'card_resizer_popup.dart';
-import 'text_settings_editor.dart';
+import 'quote_card.dart'; 
 
 class EditingDrawer extends StatefulWidget {
   final AppState appState;
@@ -227,7 +228,6 @@ class _EditingDrawerState extends State<EditingDrawer> {
   Widget _buildCardTab(ColorScheme cs) {
     return ListView(
       children: [
-        // ── Card background toggle ──────────────────────────────────────
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(_l('Kartı Göster', 'Show Card')),
@@ -241,7 +241,6 @@ class _EditingDrawerState extends State<EditingDrawer> {
         ),
         const SizedBox(height: 6),
 
-        // ── Card background COLOR — collapsible ─────────────────────────
         _colorExpansionTile(
           cs: cs,
           title: _l('Kart Arka Plan Rengi', 'Card Background Color'),
@@ -252,7 +251,6 @@ class _EditingDrawerState extends State<EditingDrawer> {
               _updateDraft(draft.copyWith(cardBackgroundColorValue: c.toARGB32())),
         ),
 
-        // ── Overlay opacity ─────────────────────────────────────────────
         ListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(_l('Arka plan opaklığı', 'Overlay Opacity')),
@@ -266,7 +264,6 @@ class _EditingDrawerState extends State<EditingDrawer> {
           onChanged: (v) => _updateDraft(draft.copyWith(backgroundOverlayOpacity: v)),
         ),
 
-        // ── Card opacity ────────────────────────────────────────────────
         ListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(_l('Kart opaklığı', 'Card Opacity')),
@@ -281,7 +278,6 @@ class _EditingDrawerState extends State<EditingDrawer> {
         ),
         const SizedBox(height: 12),
 
-        // ── Resize button ────────────────────────────────────────────────
         ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
             backgroundColor: cs.primary,
@@ -327,7 +323,6 @@ class _EditingDrawerState extends State<EditingDrawer> {
     );
   }
 
-  // ── Reusable collapsible color-picker tile ────────────────────────────────
   Widget _colorExpansionTile({
     required ColorScheme cs,
     required String title,
@@ -337,7 +332,6 @@ class _EditingDrawerState extends State<EditingDrawer> {
     required void Function(Color) onColorChanged,
   }) {
     final hexStr = '#${hexValue.toRadixString(16).padLeft(8, '0').toUpperCase()}';
-    // Preview swatch
     final swatch = Container(
       width: 22,
       height: 22,
@@ -367,5 +361,307 @@ class _EditingDrawerState extends State<EditingDrawer> {
         ),
       ],
     );
+  }
+}
+
+// ── TEXT SETTINGS EDITOR ──
+
+const List<String> _availableFonts = [
+  'Roboto', 'Lato', 'Open Sans', 'Montserrat', 'Oswald',
+  'Raleway', 'Merriweather', 'Playfair Display', 'Ubuntu',
+  'Poppins', 'Nunito', 'Comic Neue', 'Pacifico', 'Caveat', 'Dancing Script'
+];
+
+const List<Color> _presetColors = [
+  Colors.white,
+  Colors.black,
+  Color(0xFFE53935), // Red
+  Color(0xFFD81B60), // Pink
+  Color(0xFF8E24AA), // Purple
+  Color(0xFF5E35B1), // Deep Purple
+  Color(0xFF3949AB), // Indigo
+  Color(0xFF1E88E5), // Blue
+  Color(0xFF039BE5), // Light Blue
+  Color(0xFF00ACC1), // Cyan
+  Color(0xFF00897B), // Teal
+  Color(0xFF43A047), // Green
+  Color(0xFF7CB342), // Light Green
+  Color(0xFFFDD835), // Yellow
+  Color(0xFFFB8C00), // Orange
+];
+
+class TextSettingsEditor extends StatefulWidget {
+  final AppSettings initialSettings;
+  final String sampleText;
+  final String sampleAuthor;
+  final String language;
+  final void Function(AppSettings updated) onChanged;
+
+  const TextSettingsEditor({
+    super.key,
+    required this.initialSettings,
+    required this.sampleText,
+    required this.sampleAuthor,
+    required this.language,
+    required this.onChanged,
+  });
+
+  @override
+  State<TextSettingsEditor> createState() => _TextSettingsEditorState();
+}
+
+class _TextSettingsEditorState extends State<TextSettingsEditor> {
+  late AppSettings _draft;
+  Color? _customTextColor;
+
+  @override
+  void initState() {
+    super.initState();
+    _draft = widget.initialSettings;
+    
+    final textC = Color(_draft.textColorValue);
+    if (!_presetColors.any((c) => c.toARGB32() == textC.toARGB32())) {
+      _customTextColor = textC;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant TextSettingsEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialSettings != oldWidget.initialSettings) {
+      _draft = widget.initialSettings;
+    }
+  }
+
+  String _l(String tr, String en) => widget.language == 'en' ? en : tr;
+
+  void _notify(AppSettings next) {
+    setState(() => _draft = next);
+    widget.onChanged(next);
+  }
+
+  void _pickCustomColor() {
+    final initialColor = Color(_draft.textColorValue);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        Color selected = initialColor;
+        return AlertDialog(
+          title: Text(_l('Özel Renk Seç', 'Pick Custom Color')),
+          content: SingleChildScrollView(
+            child: ColorPicker(
+              pickerColor: initialColor,
+              onColorChanged: (c) => selected = c,
+              enableAlpha: false,
+              displayThumbColor: true,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(_l('İptal', 'Cancel')),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _customTextColor = selected;
+                  _notify(_draft.copyWith(textColorValue: selected.toARGB32()));
+                });
+                Navigator.of(context).pop();
+              },
+              child: Text(_l('Seç', 'Select')),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = Color(_draft.textColorValue);
+    final cardBg = Color(_draft.cardBackgroundColorValue);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Text(
+            _l('Yazı Boyutu', 'Font Size'),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
+        Row(
+          children: [
+            const SizedBox(width: 8),
+            const Icon(Icons.text_fields, size: 16),
+            Expanded(
+              child: Slider(
+                value: _draft.fontSize.clamp(10, 42),
+                min: 10,
+                max: 42,
+                divisions: 32,
+                label: '${_draft.fontSize.round()}pt',
+                onChanged: (v) => _notify(_draft.copyWith(fontSize: v)),
+              ),
+            ),
+            SizedBox(
+              width: 36,
+              child: Text('${_draft.fontSize.round()}pt',
+                  style: const TextStyle(fontSize: 12)),
+            ),
+          ],
+        ),
+
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
+          child: Text(
+            _l('Yazı Rengi', 'Text Color'),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _colorPalette(textColor),
+          ),
+        ),
+
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 12, 8, 6),
+          child: Text(
+            _l('Yazı Tipi', 'Font Family'),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: DropdownButtonFormField<String>(
+            initialValue: _draft.fontFamily,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: _availableFonts.map((f) {
+              TextStyle fs;
+              try { fs = GoogleFonts.getFont(f, fontSize: 14); }
+              catch (_) { fs = const TextStyle(fontSize: 14); }
+              return DropdownMenuItem(value: f, child: Text(f, style: fs));
+            }).toList(),
+            onChanged: (v) {
+              if (v == null) return;
+              _notify(_draft.copyWith(fontFamily: v));
+            },
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Text(
+            _l('Yazı Görünümü', 'Text Preview'),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: Colors.grey.shade900.withValues(alpha: 0.8),
+          ),
+          padding: const EdgeInsets.all(12),
+          child: QuoteCard(
+            text: widget.sampleText,
+            author: widget.sampleAuthor,
+            cardBackgroundColor: cardBg,
+            quoteTextColor: textColor,
+            opacity: _draft.cardOpacity,
+            fontSize: _draft.fontSize,
+            fontFamily: _draft.fontFamily,
+          ),
+        ),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  List<Widget> _colorPalette(Color current) {
+    List<Widget> items = [];
+
+    for (int i = 0; i < _presetColors.length; i++) {
+      final c = _presetColors[i];
+      final selected = current.toARGB32() == c.toARGB32();
+      items.add(
+        GestureDetector(
+          onTap: () {
+            _notify(_draft.copyWith(textColorValue: c.toARGB32()));
+          },
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: c,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: selected ? Colors.blueAccent : Colors.grey.shade400,
+                width: selected ? 2.5 : 1.0,
+              ),
+              boxShadow: selected
+                  ? [BoxShadow(color: Colors.blueAccent.withValues(alpha: 0.4), blurRadius: 6)]
+                  : null,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final isCustomSelected = _customTextColor != null && current.toARGB32() == _customTextColor!.toARGB32();
+    
+    items.add(
+      GestureDetector(
+        onTap: () => _pickCustomColor(),
+        child: Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: isCustomSelected
+                ? null
+                : const SweepGradient(
+                    colors: [
+                      Colors.red,
+                      Colors.orange,
+                      Colors.yellow,
+                      Colors.green,
+                      Colors.blue,
+                      Colors.indigo,
+                      Colors.purple,
+                      Colors.red,
+                    ],
+                  ),
+            color: isCustomSelected ? _customTextColor : null,
+            border: Border.all(
+              color: isCustomSelected ? Colors.blueAccent : Colors.white60,
+              width: isCustomSelected ? 2.5 : 1.5,
+            ),
+            boxShadow: isCustomSelected
+                ? [BoxShadow(color: Colors.blueAccent.withValues(alpha: 0.4), blurRadius: 6)]
+                : null,
+          ),
+          child: isCustomSelected
+              ? const Icon(Icons.check, size: 14, color: Colors.white)
+              : const Icon(Icons.colorize_rounded, size: 16, color: Colors.white),
+        ),
+      ),
+    );
+
+    return items;
   }
 }

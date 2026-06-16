@@ -3,6 +3,13 @@ enum BarTiming {
   timeOfDay,
 }
 
+// Popup zamanlaması için gerekli olan Enum eklendi
+enum PopupTiming {
+  immediate,
+  timeOfDay,
+  betweenHours,
+}
+
 class AppSettings {
   final String themeId;
   final String appLanguage; // tr | en
@@ -36,6 +43,13 @@ class AppSettings {
   final int barIntervalMinutes;
   final int barTimeOfDayMinutes;
 
+  // --- YENİ EKLENEN POPUP (AÇILIŞ KARTI) DEĞİŞKENLERİ ---
+  final bool popupOnOpenEnabled;
+  final PopupTiming popupTiming;
+  final int popupTimeOfDayMinutes;
+  final int popupBetweenStartMinutes;
+  final int popupBetweenEndMinutes;
+
   const AppSettings({
     required this.themeId,
     required this.appLanguage,
@@ -60,6 +74,11 @@ class AppSettings {
     required this.barTiming,
     required this.barIntervalMinutes,
     required this.barTimeOfDayMinutes,
+    required this.popupOnOpenEnabled,
+    required this.popupTiming,
+    required this.popupTimeOfDayMinutes,
+    required this.popupBetweenStartMinutes,
+    required this.popupBetweenEndMinutes,
   });
 
   factory AppSettings.defaults() {
@@ -87,6 +106,13 @@ class AppSettings {
       barTiming: BarTiming.intervalMinutes,
       barIntervalMinutes: 120,
       barTimeOfDayMinutes: 9 * 60,
+      
+      // Popup default değerleri
+      popupOnOpenEnabled: true,
+      popupTiming: PopupTiming.immediate,
+      popupTimeOfDayMinutes: 9 * 60, // 09:00
+      popupBetweenStartMinutes: 8 * 60, // 08:00
+      popupBetweenEndMinutes: 22 * 60, // 22:00
     );
   }
 
@@ -114,6 +140,11 @@ class AppSettings {
     BarTiming? barTiming,
     int? barIntervalMinutes,
     int? barTimeOfDayMinutes,
+    bool? popupOnOpenEnabled,
+    PopupTiming? popupTiming,
+    int? popupTimeOfDayMinutes,
+    int? popupBetweenStartMinutes,
+    int? popupBetweenEndMinutes,
   }) {
     return AppSettings(
       themeId: themeId ?? this.themeId,
@@ -123,30 +154,35 @@ class AppSettings {
       photoFilterIntensity: photoFilterIntensity ?? this.photoFilterIntensity,
       showCard: showCard ?? this.showCard,
       showCardBackground: showCardBackground ?? this.showCardBackground,
-      backgroundOverlayOpacity:
-          backgroundOverlayOpacity ?? this.backgroundOverlayOpacity,
+      backgroundOverlayOpacity: backgroundOverlayOpacity ?? this.backgroundOverlayOpacity,
       cardOpacity: cardOpacity ?? this.cardOpacity,
       cardLeftN: cardLeftN ?? this.cardLeftN,
       cardTopN: cardTopN ?? this.cardTopN,
       cardWidthN: cardWidthN ?? this.cardWidthN,
       cardHeightN: cardHeightN ?? this.cardHeightN,
-      cardBackgroundColorValue:
-          cardBackgroundColorValue ?? this.cardBackgroundColorValue,
+      cardBackgroundColorValue: cardBackgroundColorValue ?? this.cardBackgroundColorValue,
       fontSize: fontSize ?? this.fontSize,
       textColorValue: textColorValue ?? this.textColorValue,
       effectColorValue: effectColorValue ?? this.effectColorValue,
       fontFamily: fontFamily ?? this.fontFamily,
       textEffectId: textEffectId ?? this.textEffectId,
-      barNotificationsEnabled:
-          barNotificationsEnabled ?? this.barNotificationsEnabled,
+      barNotificationsEnabled: barNotificationsEnabled ?? this.barNotificationsEnabled,
       barTiming: barTiming ?? this.barTiming,
       barIntervalMinutes: barIntervalMinutes ?? this.barIntervalMinutes,
       barTimeOfDayMinutes: barTimeOfDayMinutes ?? this.barTimeOfDayMinutes,
+      popupOnOpenEnabled: popupOnOpenEnabled ?? this.popupOnOpenEnabled,
+      popupTiming: popupTiming ?? this.popupTiming,
+      popupTimeOfDayMinutes: popupTimeOfDayMinutes ?? this.popupTimeOfDayMinutes,
+      popupBetweenStartMinutes: popupBetweenStartMinutes ?? this.popupBetweenStartMinutes,
+      popupBetweenEndMinutes: popupBetweenEndMinutes ?? this.popupBetweenEndMinutes,
     );
   }
 
   static int _barTimingToJson(BarTiming t) => t.index;
   static BarTiming _barTimingFromJson(int v) => BarTiming.values[v];
+
+  static int _popupTimingToJson(PopupTiming t) => t.index;
+  static PopupTiming _popupTimingFromJson(int v) => PopupTiming.values[v];
 
   Map<String, Object?> toJson() => {
         'themeId': themeId,
@@ -172,6 +208,11 @@ class AppSettings {
         'barTiming': _barTimingToJson(barTiming),
         'barIntervalMinutes': barIntervalMinutes,
         'barTimeOfDayMinutes': barTimeOfDayMinutes,
+        'popupOnOpenEnabled': popupOnOpenEnabled,
+        'popupTiming': _popupTimingToJson(popupTiming),
+        'popupTimeOfDayMinutes': popupTimeOfDayMinutes,
+        'popupBetweenStartMinutes': popupBetweenStartMinutes,
+        'popupBetweenEndMinutes': popupBetweenEndMinutes,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -180,47 +221,31 @@ class AppSettings {
       themeId: json['themeId'] as String? ?? defaults.themeId,
       appLanguage: json['appLanguage'] as String? ?? defaults.appLanguage,
       blurSigma: (json['blurSigma'] as num?)?.toDouble() ?? defaults.blurSigma,
-      photoFilterId:
-          json['photoFilterId'] as String? ?? defaults.photoFilterId,
-      photoFilterIntensity:
-          (json['photoFilterIntensity'] as num?)?.toDouble() ??
-              defaults.photoFilterIntensity,
+      photoFilterId: json['photoFilterId'] as String? ?? defaults.photoFilterId,
+      photoFilterIntensity: (json['photoFilterIntensity'] as num?)?.toDouble() ?? defaults.photoFilterIntensity,
       showCard: json['showCard'] as bool? ?? defaults.showCard,
-      showCardBackground:
-          json['showCardBackground'] as bool? ?? defaults.showCardBackground,
-      backgroundOverlayOpacity:
-          (json['backgroundOverlayOpacity'] as num?)?.toDouble() ??
-              defaults.backgroundOverlayOpacity,
-      cardOpacity:
-          (json['cardOpacity'] as num?)?.toDouble() ?? defaults.cardOpacity,
-      cardLeftN:
-          (json['cardLeftN'] as num?)?.toDouble() ?? defaults.cardLeftN,
+      showCardBackground: json['showCardBackground'] as bool? ?? defaults.showCardBackground,
+      backgroundOverlayOpacity: (json['backgroundOverlayOpacity'] as num?)?.toDouble() ?? defaults.backgroundOverlayOpacity,
+      cardOpacity: (json['cardOpacity'] as num?)?.toDouble() ?? defaults.cardOpacity,
+      cardLeftN: (json['cardLeftN'] as num?)?.toDouble() ?? defaults.cardLeftN,
       cardTopN: (json['cardTopN'] as num?)?.toDouble() ?? defaults.cardTopN,
-      cardWidthN:
-          (json['cardWidthN'] as num?)?.toDouble() ?? defaults.cardWidthN,
-      cardHeightN:
-          (json['cardHeightN'] as num?)?.toDouble() ?? defaults.cardHeightN,
-      cardBackgroundColorValue:
-          json['cardBackgroundColorValue'] as int? ??
-              defaults.cardBackgroundColorValue,
-      fontSize:
-          (json['fontSize'] as num?)?.toDouble() ?? defaults.fontSize,
-      textColorValue:
-          json['textColorValue'] as int? ?? defaults.textColorValue,
-      effectColorValue:
-          json['effectColorValue'] as int? ?? defaults.effectColorValue,
+      cardWidthN: (json['cardWidthN'] as num?)?.toDouble() ?? defaults.cardWidthN,
+      cardHeightN: (json['cardHeightN'] as num?)?.toDouble() ?? defaults.cardHeightN,
+      cardBackgroundColorValue: json['cardBackgroundColorValue'] as int? ?? defaults.cardBackgroundColorValue,
+      fontSize: (json['fontSize'] as num?)?.toDouble() ?? defaults.fontSize,
+      textColorValue: json['textColorValue'] as int? ?? defaults.textColorValue,
+      effectColorValue: json['effectColorValue'] as int? ?? defaults.effectColorValue,
       fontFamily: json['fontFamily'] as String? ?? defaults.fontFamily,
       textEffectId: json['textEffectId'] as String? ?? defaults.textEffectId,
-      barNotificationsEnabled:
-          json['barNotificationsEnabled'] as bool? ??
-              defaults.barNotificationsEnabled,
-      barTiming: json['barTiming'] != null
-          ? _barTimingFromJson(json['barTiming'] as int)
-          : defaults.barTiming,
-      barIntervalMinutes:
-          json['barIntervalMinutes'] as int? ?? defaults.barIntervalMinutes,
-      barTimeOfDayMinutes: json['barTimeOfDayMinutes'] as int? ??
-          defaults.barTimeOfDayMinutes,
+      barNotificationsEnabled: json['barNotificationsEnabled'] as bool? ?? defaults.barNotificationsEnabled,
+      barTiming: json['barTiming'] != null ? _barTimingFromJson(json['barTiming'] as int) : defaults.barTiming,
+      barIntervalMinutes: json['barIntervalMinutes'] as int? ?? defaults.barIntervalMinutes,
+      barTimeOfDayMinutes: json['barTimeOfDayMinutes'] as int? ?? defaults.barTimeOfDayMinutes,
+      popupOnOpenEnabled: json['popupOnOpenEnabled'] as bool? ?? defaults.popupOnOpenEnabled,
+      popupTiming: json['popupTiming'] != null ? _popupTimingFromJson(json['popupTiming'] as int) : defaults.popupTiming,
+      popupTimeOfDayMinutes: json['popupTimeOfDayMinutes'] as int? ?? defaults.popupTimeOfDayMinutes,
+      popupBetweenStartMinutes: json['popupBetweenStartMinutes'] as int? ?? defaults.popupBetweenStartMinutes,
+      popupBetweenEndMinutes: json['popupBetweenEndMinutes'] as int? ?? defaults.popupBetweenEndMinutes,
     );
   }
 }

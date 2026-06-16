@@ -6,18 +6,32 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/quote.dart';
 
 class QuoteService {
-  static const int _imageCount = 419; // max image number in ImageKit
+  static const int _imageCount = 419; 
   static const String _imageKitBaseUrl = 'https://ik.imagekit.io/tuievolution/images';
   
   final _rng = Random();
-
-  // Cached quote list per language
   final Map<String, List<Quote>> _cacheByLanguage = {};
 
-  String _randomImageKitUrl() {
+  Future<String> _getDailyImage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    final todayStr = '${now.year}-${now.month}-${now.day}';
+    final savedDate = prefs.getString('dailyImageDate');
+
+    if (savedDate == todayStr) {
+      final savedImage = prefs.getString('dailyImage');
+      if (savedImage != null && savedImage.isNotEmpty) {
+        return savedImage;
+      }
+    }
+
     final imageIndex = _rng.nextInt(_imageCount) + 1;
-    // HATA BURADAYDI: "?tr=f-webp" kısmı tamamen silindi
-    return '$_imageKitBaseUrl/bg_$imageIndex.jpg';
+    final newImage = '$_imageKitBaseUrl/bg_$imageIndex.jpg?tr=w-1080,f-auto';
+
+    await prefs.setString('dailyImageDate', todayStr);
+    await prefs.setString('dailyImage', newImage);
+
+    return newImage;
   }
 
   Future<List<Quote>> _loadAllQuotes() async {
@@ -26,7 +40,6 @@ class QuoteService {
       'assets/data/master_quotes_turkish.csv',
     );
 
-    // Simple CSV parser that handles quoted fields with commas inside
     final lines = csvRaw.split('\n');
     final quotes = <Quote>[];
 
@@ -48,7 +61,7 @@ class QuoteService {
         authorTr: author.isEmpty ? 'Anonim' : author,
         textEn: textEn.isEmpty ? textTr : textEn,
         authorEn: author.isEmpty ? 'Unknown' : author,
-        imageAsset: '', // will be set dynamically
+        imageAsset: '', 
       ));
     }
     return quotes;
@@ -84,13 +97,15 @@ class QuoteService {
     bool forceRefresh = false,
   }) async {
     final quotes = await getAllQuotes(language: language);
+    final dailyImage = await _getDailyImage();
+
     if (quotes.isEmpty) {
       return Quote(
         textTr: 'Motivasyon, alışkanlıkların doğal sonucudur.',
         authorTr: 'MotivMood',
         textEn: 'Motivation is the natural result of habits.',
         authorEn: 'MotivMood',
-        imageAsset: _randomImageKitUrl(),
+        imageAsset: dailyImage,
       );
     }
 
@@ -100,33 +115,20 @@ class QuoteService {
 
     final savedDate = prefs.getString('dailyQuoteDate');
     final savedIndex = prefs.getInt('dailyQuoteIndex');
-    final savedImage = prefs.getString('dailyQuoteImage');
 
-    if (!forceRefresh && savedDate == todayStr && savedIndex != null && savedImage != null) {
-      // Return today's saved quote and image
+    if (!forceRefresh && savedDate == todayStr && savedIndex != null) {
       if (savedIndex >= 0 && savedIndex < quotes.length) {
         final q = quotes[savedIndex];
-        // Fix any old URLs (motivmood, image_, double slashes) by reconstructing the URL
-        String safeSavedImage = savedImage;
-        final regex = RegExp(r'(?:bg_|image_)(\d+)\.jpg');
-        final match = regex.firstMatch(savedImage);
-        if (match != null) {
-          final idx = match.group(1);
-          // HATA BURADAYDI: "?tr=f-webp" kısmı tamamen silindi
-          safeSavedImage = '$_imageKitBaseUrl/bg_$idx.jpg';
-        }
-
         return Quote(
           textTr: q.textTr,
           authorTr: q.authorTr,
           textEn: q.textEn,
           authorEn: q.authorEn,
-          imageAsset: safeSavedImage,
+          imageAsset: dailyImage, 
         );
       }
     }
 
-    // Otherwise, generate a new quote and image
     List<String> shownList = prefs.getStringList('shownQuotes') ?? [];
     List<int> unshownIndices = [];
     for (int i = 0; i < quotes.length; i++) {
@@ -144,12 +146,8 @@ class QuoteService {
     shownList.add(selectedIndex.toString());
     await prefs.setStringList('shownQuotes', shownList);
 
-    final imageKitUrl = _randomImageKitUrl();
-
-    // Save for today
     await prefs.setString('dailyQuoteDate', todayStr);
     await prefs.setInt('dailyQuoteIndex', selectedIndex);
-    await prefs.setString('dailyQuoteImage', imageKitUrl);
 
     final q = quotes[selectedIndex];
     return Quote(
@@ -157,7 +155,7 @@ class QuoteService {
       authorTr: q.authorTr,
       textEn: q.textEn,
       authorEn: q.authorEn,
-      imageAsset: imageKitUrl,
+      imageAsset: dailyImage, 
     );
   }
 

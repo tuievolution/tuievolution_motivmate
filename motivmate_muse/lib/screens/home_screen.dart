@@ -60,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
         rewardedAdLoadCallback: ads.RewardedAdLoadCallback(
           onAdLoaded: (ad) {
             ad.show(onUserEarnedReward: (ad, reward) {
-              appState.incrementAdWatchAndRefresh();
+              appState.incrementAdWatchAndRefreshQuote();
             });
           },
           onAdFailedToLoad: (error) {
