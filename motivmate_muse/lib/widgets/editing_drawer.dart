@@ -550,8 +550,24 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
             ),
             items: _availableFonts.map((f) {
               TextStyle fs;
-              try { fs = GoogleFonts.getFont(f, fontSize: 14); }
-              catch (_) { fs = const TextStyle(fontSize: 14); }
+              switch (f) {
+                case 'Lato': fs = GoogleFonts.lato(fontSize: 14); break;
+                case 'Open Sans': fs = GoogleFonts.openSans(fontSize: 14); break;
+                case 'Montserrat': fs = GoogleFonts.montserrat(fontSize: 14); break;
+                case 'Oswald': fs = GoogleFonts.oswald(fontSize: 14); break;
+                case 'Raleway': fs = GoogleFonts.raleway(fontSize: 14); break;
+                case 'Merriweather': fs = GoogleFonts.merriweather(fontSize: 14); break;
+                case 'Playfair Display': fs = GoogleFonts.playfairDisplay(fontSize: 14); break;
+                case 'Ubuntu': fs = GoogleFonts.ubuntu(fontSize: 14); break;
+                case 'Poppins': fs = GoogleFonts.poppins(fontSize: 14); break;
+                case 'Nunito': fs = GoogleFonts.nunito(fontSize: 14); break;
+                case 'Comic Neue': fs = GoogleFonts.comicNeue(fontSize: 14); break;
+                case 'Pacifico': fs = GoogleFonts.pacifico(fontSize: 14); break;
+                case 'Caveat': fs = GoogleFonts.caveat(fontSize: 14); break;
+                case 'Dancing Script': fs = GoogleFonts.dancingScript(fontSize: 14); break;
+                case 'Roboto':
+                default: fs = GoogleFonts.roboto(fontSize: 14); break;
+              }
               return DropdownMenuItem(value: f, child: Text(f, style: fs));
             }).toList(),
             onChanged: (v) {

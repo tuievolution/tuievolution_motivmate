@@ -11,35 +11,26 @@ Color _contrastColor(Color base) {
 List<Shadow> _buildShadows(String effectId, Color textColor, Color effectColor) {
   final contrast = effectColor;
   switch (effectId) {
-    // ── Subtle drop shadow ─────────────────────────────────────
     case 'shadow_soft':
       return [
         Shadow(color: contrast.withValues(alpha: 0.75), blurRadius: 6, offset: const Offset(1, 2)),
       ];
-
-    // ── Solid hard shadow ────────────────────────────────
     case 'shadow_hard':
       return [
         Shadow(color: contrast, blurRadius: 0, offset: const Offset(2, 2)),
       ];
-
-    // ── Neon glow ────────────────────────────────────
     case 'neon':
       return [
         Shadow(color: contrast.withValues(alpha: 0.95), blurRadius: 4),
         Shadow(color: contrast.withValues(alpha: 0.75), blurRadius: 12),
         Shadow(color: contrast.withValues(alpha: 0.55), blurRadius: 24),
       ];
-
-    // ── Cloud / glowing halo ───────────────────────────────────────────────
     case 'cloud':
       return [
         Shadow(color: contrast.withValues(alpha: 0.45), blurRadius: 14),
         Shadow(color: contrast.withValues(alpha: 0.30), blurRadius: 28),
         Shadow(color: contrast.withValues(alpha: 0.15), blurRadius: 48),
       ];
-
-    // ── Retro long shadow ──────────────────────────────
     case 'retro':
       return List.generate(
         8,
@@ -49,17 +40,37 @@ List<Shadow> _buildShadows(String effectId, Color textColor, Color effectColor) 
           offset: Offset((i + 1).toDouble(), (i + 1).toDouble()),
         ),
       );
-
-    // ── Emboss ────────────────────────────────
     case 'emboss':
       return [
         Shadow(color: Colors.white.withValues(alpha: 0.6), blurRadius: 0, offset: const Offset(-1, -1)),
         Shadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 0, offset: const Offset(1, 1)),
       ];
-
     case 'none':
     default:
       return [];
+  }
+}
+
+/// Garantili Google Fonts Eşleştirici
+TextStyle _getGoogleFont(String fontFamily, {TextStyle? textStyle}) {
+  switch (fontFamily) {
+    case 'Lato': return GoogleFonts.lato(textStyle: textStyle);
+    case 'Open Sans': return GoogleFonts.openSans(textStyle: textStyle);
+    case 'Montserrat': return GoogleFonts.montserrat(textStyle: textStyle);
+    case 'Oswald': return GoogleFonts.oswald(textStyle: textStyle);
+    case 'Raleway': return GoogleFonts.raleway(textStyle: textStyle);
+    case 'Merriweather': return GoogleFonts.merriweather(textStyle: textStyle);
+    case 'Playfair Display': return GoogleFonts.playfairDisplay(textStyle: textStyle);
+    case 'Ubuntu': return GoogleFonts.ubuntu(textStyle: textStyle);
+    case 'Poppins': return GoogleFonts.poppins(textStyle: textStyle);
+    case 'Nunito': return GoogleFonts.nunito(textStyle: textStyle);
+    case 'Comic Neue': return GoogleFonts.comicNeue(textStyle: textStyle);
+    case 'Pacifico': return GoogleFonts.pacifico(textStyle: textStyle);
+    case 'Caveat': return GoogleFonts.caveat(textStyle: textStyle);
+    case 'Dancing Script': return GoogleFonts.dancingScript(textStyle: textStyle);
+    case 'Roboto':
+    default:
+      return GoogleFonts.roboto(textStyle: textStyle);
   }
 }
 
@@ -75,9 +86,7 @@ class QuoteCard extends StatelessWidget {
   final String textEffectId;
   final bool showBackground;
 
-  /// When true the card expands to fill its parent box.
   final bool fillContainer;
-
   final double borderRadius;
   final double quotePadding;
 
@@ -103,19 +112,27 @@ class QuoteCard extends StatelessWidget {
     final effectiveBackground =
         cardBackgroundColor.withValues(alpha: opacity.clamp(0.0, 1.0));
 
-    TextStyle baseStyle;
-    try {
-      baseStyle = GoogleFonts.getFont(fontFamily);
-    } catch (_) {
-      baseStyle = const TextStyle(fontFamily: 'Roboto');
-    }
-
     final effColor = effectColor ?? _contrastColor(quoteTextColor);
     final shadows = _buildShadows(textEffectId, quoteTextColor, effColor);
 
-    // Font size is capped to avoid overflow (max 28pt)
-    final clampedFontSize = fontSize.clamp(10.0, 28.0);
-    final authorFontSize = (clampedFontSize * 0.45).clamp(10.0, 16.0);
+    final clampedFontSize = fontSize.clamp(10.0, 42.0);
+    final authorFontSize = (clampedFontSize * 0.45).clamp(10.0, 18.0);
+
+    // Fontları yeni eşleştirici ile çağırıyoruz
+    final baseStyle = _getGoogleFont(fontFamily, textStyle: TextStyle(
+      color: quoteTextColor,
+      fontSize: clampedFontSize,
+      fontWeight: FontWeight.w500,
+      height: 1.25,
+      shadows: shadows.isEmpty ? null : shadows,
+    ));
+
+    final authorStyle = _getGoogleFont(fontFamily, textStyle: TextStyle(
+      color: quoteTextColor.withValues(alpha: 0.75),
+      fontSize: authorFontSize,
+      fontWeight: FontWeight.w500,
+      shadows: shadows.isEmpty ? null : shadows,
+    ));
 
     final content = LayoutBuilder(
       builder: (context, constraints) {
@@ -130,7 +147,6 @@ class QuoteCard extends StatelessWidget {
               size: 20,
             ),
             const SizedBox(height: 8),
-            // FittedBox auto-shrinks text if it would still overflow
             FittedBox(
               fit: BoxFit.scaleDown,
               child: ConstrainedBox(
@@ -143,13 +159,7 @@ class QuoteCard extends StatelessWidget {
                   '"$text"',
                   textAlign: TextAlign.center,
                   softWrap: true,
-                  style: baseStyle.copyWith(
-                    color: quoteTextColor,
-                    fontSize: clampedFontSize,
-                    fontWeight: FontWeight.w500,
-                    height: 1.25,
-                    shadows: shadows.isEmpty ? null : shadows,
-                  ),
+                  style: baseStyle,
                 ),
               ),
             ),
@@ -159,12 +169,7 @@ class QuoteCard extends StatelessWidget {
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
-              style: baseStyle.copyWith(
-                color: quoteTextColor.withValues(alpha: 0.75),
-                fontSize: authorFontSize,
-                fontWeight: FontWeight.w500,
-                shadows: shadows.isEmpty ? null : shadows,
-              ),
+              style: authorStyle,
             ),
           ],
         );
