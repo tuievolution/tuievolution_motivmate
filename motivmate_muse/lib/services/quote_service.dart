@@ -12,28 +12,6 @@ class QuoteService {
   final _rng = Random();
   final Map<String, List<Quote>> _cacheByLanguage = {};
 
-  Future<String> _getDailyImage() async {
-    final prefs = await SharedPreferences.getInstance();
-    final now = DateTime.now();
-    final todayStr = '${now.year}-${now.month}-${now.day}';
-    final savedDate = prefs.getString('dailyImageDate');
-
-    if (savedDate == todayStr) {
-      final savedImage = prefs.getString('dailyImage');
-      if (savedImage != null && savedImage.isNotEmpty) {
-        return savedImage;
-      }
-    }
-
-    final imageIndex = _rng.nextInt(_imageCount) + 1;
-    final newImage = '$_imageKitBaseUrl/bg_$imageIndex.jpg?tr=w-1080,f-auto';
-
-    await prefs.setString('dailyImageDate', todayStr);
-    await prefs.setString('dailyImage', newImage);
-
-    return newImage;
-  }
-
   Future<List<Quote>> _loadAllQuotes() async {
     const fieldDelimiter = ',';
     final csvRaw = await rootBundle.loadString(
@@ -97,7 +75,18 @@ class QuoteService {
     bool forceRefresh = false,
   }) async {
     final quotes = await getAllQuotes(language: language);
-    final dailyImage = await _getDailyImage();
+    
+    final now = DateTime.now();
+    
+    // EVRENSEL MATEMATİK: Belirli bir tarihten itibaren geçen gün sayısı.
+    // Bu sayede herkesin telefonunda aynı indeksteki söz ve arka plan görünür.
+    final daysSinceEpoch = DateTime(now.year, now.month, now.day)
+        .difference(DateTime(2024, 1, 1))
+        .inDays;
+    
+    // Herkes için o günün ortak arka plan fotoğrafını seçiyoruz
+    final globalDailyImageIndex = (daysSinceEpoch % _imageCount) + 1;
+    final dailyImage = '$_imageKitBaseUrl/bg_$globalDailyImageIndex.jpg?tr=w-1080,f-auto';
 
     if (quotes.isEmpty) {
       return Quote(
@@ -109,45 +98,61 @@ class QuoteService {
       );
     }
 
+    // Herkes için o günün ortak sözü
+    final globalDailyQuoteIndex = daysSinceEpoch % quotes.length;
     final prefs = await SharedPreferences.getInstance();
-    final now = DateTime.now();
-    final todayStr = '${now.year}-${now.month}-${now.day}';
+    
+    // Kullanıcının gördüğü sözlerin hafızası (1 yıllık)
+    List<String> shownList = prefs.getStringList('shownQuotes') ?? [];
 
-    final savedDate = prefs.getString('dailyQuoteDate');
-    final savedIndex = prefs.getInt('dailyQuoteIndex');
-
-    if (!forceRefresh && savedDate == todayStr && savedIndex != null) {
-      if (savedIndex >= 0 && savedIndex < quotes.length) {
-        final q = quotes[savedIndex];
-        return Quote(
-          textTr: q.textTr,
-          authorTr: q.authorTr,
-          textEn: q.textEn,
-          authorEn: q.authorEn,
-          imageAsset: dailyImage, 
-        );
+    // DURUM 1: NORMAL AÇILIŞ (Ekstra söz istenmedi, ortak sözü ver)
+    if (!forceRefresh) {
+      // Günün evrensel sözünü, tekrar karşısına çıkmasın diye kullanıcının hafızasına da ekliyoruz
+      if (!shownList.contains(globalDailyQuoteIndex.toString())) {
+        shownList.add(globalDailyQuoteIndex.toString());
+        
+        // Sadece son 365 sözü hafızada tut (Yılda bir sıfırlansın diye)
+        if (shownList.length > 365) {
+          shownList.removeAt(0); 
+        }
+        await prefs.setStringList('shownQuotes', shownList);
       }
+
+      final q = quotes[globalDailyQuoteIndex];
+      return Quote(
+        textTr: q.textTr,
+        authorTr: q.authorTr,
+        textEn: q.textEn,
+        authorEn: q.authorEn,
+        imageAsset: dailyImage, 
+      );
     }
 
-    List<String> shownList = prefs.getStringList('shownQuotes') ?? [];
+    // DURUM 2: EKSTRA SÖZ (Kullanıcı reklam izledi / premium)
     List<int> unshownIndices = [];
     for (int i = 0; i < quotes.length; i++) {
-      if (!shownList.contains(i.toString())) {
+      // Hem hafızadaki son 365 sözü hem de günün ortak sözünü atlıyoruz
+      if (!shownList.contains(i.toString()) && i != globalDailyQuoteIndex) {
         unshownIndices.add(i);
       }
     }
 
+    // Eğer çok düşük ihtimalle tüm sözler tükenmişse, hafızayı temizle ama günün sözünü yine verme
     if (unshownIndices.isEmpty) {
       shownList.clear();
       unshownIndices = List.generate(quotes.length, (i) => i);
+      unshownIndices.remove(globalDailyQuoteIndex);
     }
 
+    // Geri kalanlardan rastgele birini seçiyoruz
     final selectedIndex = unshownIndices[_rng.nextInt(unshownIndices.length)];
+    
+    // Gösterilen ekstra sözü hemen hafızaya al (365 limitli)
     shownList.add(selectedIndex.toString());
+    if (shownList.length > 365) {
+      shownList.removeAt(0);
+    }
     await prefs.setStringList('shownQuotes', shownList);
-
-    await prefs.setString('dailyQuoteDate', todayStr);
-    await prefs.setInt('dailyQuoteIndex', selectedIndex);
 
     final q = quotes[selectedIndex];
     return Quote(
@@ -155,7 +160,7 @@ class QuoteService {
       authorTr: q.authorTr,
       textEn: q.textEn,
       authorEn: q.authorEn,
-      imageAsset: dailyImage, 
+      imageAsset: dailyImage, // Arka plan fotoğrafı KESİNLİKLE günün fotoğrafı kalıyor
     );
   }
 
