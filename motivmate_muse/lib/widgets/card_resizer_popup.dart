@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../models/app_settings.dart';
 import 'quote_card.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../cache_limit.dart';
 
 /// Full-screen editor that lets the user:
 ///  • Drag the card body  → move in any direction (X and Y)
@@ -107,6 +105,38 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
     });
   }
 
+  // ── Network Image Builder ───────────────────────────────────────────────
+  Widget _buildNetworkImage(String url, {ColorFilter? filter}) {
+    Widget image = Image.network(
+      url,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return const Center(child: CircularProgressIndicator(color: Colors.white54));
+      },
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: Colors.blueGrey.shade900,
+          child: const Center(
+            child: Icon(Icons.image_not_supported_rounded, color: Colors.white24, size: 50),
+          ),
+        );
+      },
+    );
+
+    if (filter != null) {
+      return Opacity(
+        opacity: widget.settings.photoFilterIntensity,
+        child: ColorFiltered(
+          colorFilter: filter,
+          child: image,
+        ),
+      );
+    }
+    return image;
+  }
+
+
   // ── build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -136,24 +166,12 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
-                            CachedNetworkImage(
-                              imageUrl: widget.appState.quote.imagePath,
-                              cacheManager: customCacheManager,
-                              fit: BoxFit.cover,
-                            ),
+                            _buildNetworkImage(widget.appState.quote.imagePath),
+                            
                             if (!widget.appState.isOriginalView) ...[
                               if (filter != null)
-                                Opacity(
-                                  opacity: widget.settings.photoFilterIntensity,
-                                  child: ColorFiltered(
-                                    colorFilter: filter,
-                                    child: CachedNetworkImage(
-                                      imageUrl: widget.appState.quote.imagePath,
-                                      cacheManager: customCacheManager,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                ),
+                                _buildNetworkImage(widget.appState.quote.imagePath, filter: filter),
+                                
                               if (widget.settings.blurSigma > 0)
                                 Positioned.fill(
                                   child: ClipRect(
@@ -215,7 +233,6 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
                                   textEffectId: widget.settings.textEffectId,
                                   showBackground:
                                       widget.settings.showCardBackground,
-                                  // let it fill the container
                                   fillContainer: true,
                                 ),
                               ),
@@ -232,8 +249,6 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
                       ),
 
                       // ── 3) Width resize handles ─────────────────────
-                      // We place them at a reasonably fixed offset from the top
-                      // since height is organic.
                       _handle(
                         left: left - 10,
                         top: top + 40, 

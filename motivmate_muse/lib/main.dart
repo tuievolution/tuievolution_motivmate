@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart' as ads;
 import 'package:provider/provider.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 import 'app_state.dart';
 import 'models/theme_presets.dart';
@@ -79,8 +80,7 @@ class _MotivMoodRootState extends State<MotivMoodRoot>
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    final preset =
-        themePresets.firstWhere((e) => e.id == appState.settings.themeId);
+    final preset = themePresets.firstWhere((e) => e.id == appState.settings.themeId);
 
     return MaterialApp(
       title: 'MotivMood',
@@ -90,7 +90,49 @@ class _MotivMoodRootState extends State<MotivMoodRoot>
         useMaterial3: true,
         scaffoldBackgroundColor: preset.backgroundScaffoldColor,
       ),
-      home: const HomeScreen(),
+      home: StreamBuilder<List<ConnectivityResult>>(
+        stream: Connectivity().onConnectivityChanged,
+        builder: (context, snapshot) {
+          final results = snapshot.data ?? [ConnectivityResult.none];
+          final isOffline = results.contains(ConnectivityResult.none) || results.isEmpty;
+
+          if (isOffline) {
+            return Scaffold(
+              backgroundColor: preset.backgroundScaffoldColor,
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.wifi_off_rounded, 
+                      size: 80, 
+                      color: preset.accentColor.withValues(alpha: 0.5)
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      appState.settings.appLanguage == 'en' ? 'No Internet Connection' : 'İnternet Bağlantısı Yok',
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: preset.overlayColor),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        appState.settings.appLanguage == 'en' 
+                          ? 'Please connect to the internet to see your daily motivation.' 
+                          : 'Günlük motivasyonunuzu görmek için lütfen internete bağlanın.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 14, color: preset.overlayColor.withValues(alpha: 0.7)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return const HomeScreen();
+        },
+      ),
     );
   }
 }
