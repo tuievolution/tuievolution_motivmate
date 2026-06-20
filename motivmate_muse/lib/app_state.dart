@@ -103,19 +103,21 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  // --- THE FIX IS HERE ---
   Future<void> rescheduleBarNotifications() async {
     if (!settings.barNotificationsEnabled) {
       await notificationService.cancelAll();
       return;
     }
 
-    final allQuotes = await quoteService.getAllQuotes(
+    final allQuotesList = await quoteService.getAllQuotes(
       language: settings.appLanguage,
     );
-    final scheduleQuotes = allQuotes.isEmpty ? [quote] : allQuotes.take(8).toList();
+    
+    // We now pass the entire list using the correct 'allQuotes' parameter!
     await notificationService.scheduleBarNotifications(
       settings: settings,
-      quotesForSchedule: scheduleQuotes,
+      allQuotes: allQuotesList.isEmpty ? [quote] : allQuotesList,
     );
   }
 
