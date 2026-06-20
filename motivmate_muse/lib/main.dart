@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui'; 
 
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart' as ads;
@@ -8,7 +9,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'app_state.dart';
 import 'models/theme_presets.dart';
 import 'screens/home_screen.dart';
-import 'screens/splash_screen.dart'; // YENİ EKLENEN YÜKLEME EKRANI
+import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,7 +18,6 @@ void main() async {
   runApp(const MotivMoodRoot());
 }
 
-// Uygulamanın Kök Widget'ı (Durum Yöneticisi)
 class MotivMoodRoot extends StatefulWidget {
   const MotivMoodRoot({super.key});
 
@@ -26,18 +26,16 @@ class MotivMoodRoot extends StatefulWidget {
 }
 
 class _MotivMoodRootState extends State<MotivMoodRoot> {
-  AppState? _appState; // Başlangıçta boş. SplashScreen bunu dolduracak.
+  AppState? _appState;
 
   @override
   Widget build(BuildContext context) {
-    // 1. AŞAMA: Uygulama henüz yüklenmediyse Yükleme Ekranını (Splash) göster.
     if (_appState == null) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'MotivMood Yükleniyor',
         home: SplashScreen(
           onInitializationComplete: (initializedState) {
-            // Yükleme %100 olunca bu fonksiyon çalışır ve asıl uygulamaya geçer.
             setState(() {
               _appState = initializedState;
             });
@@ -46,7 +44,6 @@ class _MotivMoodRootState extends State<MotivMoodRoot> {
       );
     }
 
-    // 2. AŞAMA: Yükleme bitti, Provider'ı bağla ve asıl uygulamayı çalıştır.
     return ChangeNotifierProvider.value(
       value: _appState!,
       child: const MotivMoodMainApp(),
@@ -54,7 +51,6 @@ class _MotivMoodRootState extends State<MotivMoodRoot> {
   }
 }
 
-// Asıl Uygulama Çerçevesi (Tema ve Kullanıcı Ekranları)
 class MotivMoodMainApp extends StatefulWidget {
   const MotivMoodMainApp({super.key});
 
@@ -97,50 +93,60 @@ class _MotivMoodMainAppState extends State<MotivMoodMainApp> with WidgetsBinding
         useMaterial3: true,
         scaffoldBackgroundColor: preset.backgroundScaffoldColor,
       ),
-      // UYGULAMA İÇİNDEYKEN İNTERNET GİDERSE KORUMA EKRANI ÇIKART
-      home: StreamBuilder<List<ConnectivityResult>>(
-        stream: Connectivity().onConnectivityChanged,
-        builder: (context, snapshot) {
-          final results = snapshot.data ?? [ConnectivityResult.none];
-          final isOffline = results.contains(ConnectivityResult.none) || results.isEmpty;
+      home: Material(
+        type: MaterialType.transparency,
+        child: StreamBuilder<List<ConnectivityResult>>(
+          stream: Connectivity().onConnectivityChanged,
+          builder: (context, snapshot) {
+            final isChecking = snapshot.connectionState == ConnectionState.waiting;
+            final results = snapshot.data ?? [];
+            final isOffline = !isChecking && (results.contains(ConnectivityResult.none) || results.isEmpty);
 
-          if (isOffline) {
-            return Scaffold(
-              backgroundColor: preset.backgroundScaffoldColor,
-              body: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.wifi_off_rounded, 
-                      size: 80, 
-                      color: preset.accentColor.withValues(alpha: 0.5)
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      appState.settings.appLanguage == 'en' ? 'No Internet Connection' : 'İnternet Bağlantısı Yok',
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: preset.overlayColor),
-                    ),
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Text(
-                        appState.settings.appLanguage == 'en' 
-                          ? 'Please connect to the internet to see your daily motivation.' 
-                          : 'Günlük motivasyonunuzu görmek için lütfen internete bağlanın.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 14, color: preset.overlayColor.withValues(alpha: 0.7)),
+            return Stack(
+              children: [
+                const HomeScreen(),
+
+                if (isOffline)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: ClipRRect(
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.65),
+                            border: const Border(top: BorderSide(color: Colors.white24, width: 1)),
+                          ),
+                          child: SafeArea(
+                            top: false,
+                            child: Row(
+                              children: [
+                                const Icon(Icons.wifi_off_rounded, color: Colors.redAccent, size: 28),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Text(
+                                    appState.settings.appLanguage == 'en' ? 'No Internet Connection' : 'İnternet Bağlantısı Yok',
+                                    style: const TextStyle(
+                                      color: Colors.white, 
+                                      fontSize: 15, 
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ],
-                ),
-              ),
+                  ),
+              ],
             );
-          }
-
-          // İnternet var, ana ekranı göster!
-          return const HomeScreen();
-        },
+          },
+        ),
       ),
     );
   }
