@@ -8,46 +8,16 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'app_state.dart';
 import 'models/theme_presets.dart';
 import 'screens/home_screen.dart';
-import 'services/notification_service.dart';
-import 'services/quote_service.dart';
-import 'services/storage_service.dart';
-import 'services/billing_service.dart';
+import 'screens/splash_screen.dart'; // YENİ EKLENEN YÜKLEME EKRANI
 
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ads.MobileAds.instance.initialize();
-
-  final storageService = StorageService();
-  final initialSettings = await storageService.loadSettings();
-
-  final quoteService = QuoteService();
-  final initialQuote = await quoteService.getRandomQuote(
-    language: initialSettings.appLanguage,
-  );
-
-  final notificationService = NotificationService();
-  await notificationService.init();
-
-  final billingService = BillingService();
-  await billingService.init();
-
-  final appState = AppState(
-    storageService: storageService,
-    quoteService: quoteService,
-    notificationService: notificationService,
-    billingService: billingService,
-    initialSettings: initialSettings,
-    initialQuote: initialQuote,
-  );
-
-  runApp(
-    ChangeNotifierProvider(
-      create: (_) => appState,
-      child: const MotivMoodRoot(),
-    ),
-  );
+  
+  runApp(const MotivMoodRoot());
 }
 
+// Uygulamanın Kök Widget'ı (Durum Yöneticisi)
 class MotivMoodRoot extends StatefulWidget {
   const MotivMoodRoot({super.key});
 
@@ -55,8 +25,45 @@ class MotivMoodRoot extends StatefulWidget {
   State<MotivMoodRoot> createState() => _MotivMoodRootState();
 }
 
-class _MotivMoodRootState extends State<MotivMoodRoot>
-    with WidgetsBindingObserver {
+class _MotivMoodRootState extends State<MotivMoodRoot> {
+  AppState? _appState; // Başlangıçta boş. SplashScreen bunu dolduracak.
+
+  @override
+  Widget build(BuildContext context) {
+    // 1. AŞAMA: Uygulama henüz yüklenmediyse Yükleme Ekranını (Splash) göster.
+    if (_appState == null) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'MotivMood Yükleniyor',
+        home: SplashScreen(
+          onInitializationComplete: (initializedState) {
+            // Yükleme %100 olunca bu fonksiyon çalışır ve asıl uygulamaya geçer.
+            setState(() {
+              _appState = initializedState;
+            });
+          },
+        ),
+      );
+    }
+
+    // 2. AŞAMA: Yükleme bitti, Provider'ı bağla ve asıl uygulamayı çalıştır.
+    return ChangeNotifierProvider.value(
+      value: _appState!,
+      child: const MotivMoodMainApp(),
+    );
+  }
+}
+
+// Asıl Uygulama Çerçevesi (Tema ve Kullanıcı Ekranları)
+class MotivMoodMainApp extends StatefulWidget {
+  const MotivMoodMainApp({super.key});
+
+  @override
+  State<MotivMoodMainApp> createState() => _MotivMoodMainAppState();
+}
+
+class _MotivMoodMainAppState extends State<MotivMoodMainApp> with WidgetsBindingObserver {
+  
   @override
   void initState() {
     super.initState();
@@ -90,6 +97,7 @@ class _MotivMoodRootState extends State<MotivMoodRoot>
         useMaterial3: true,
         scaffoldBackgroundColor: preset.backgroundScaffoldColor,
       ),
+      // UYGULAMA İÇİNDEYKEN İNTERNET GİDERSE KORUMA EKRANI ÇIKART
       home: StreamBuilder<List<ConnectivityResult>>(
         stream: Connectivity().onConnectivityChanged,
         builder: (context, snapshot) {
@@ -130,6 +138,7 @@ class _MotivMoodRootState extends State<MotivMoodRoot>
             );
           }
 
+          // İnternet var, ana ekranı göster!
           return const HomeScreen();
         },
       ),
