@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../app_state.dart';
 import '../models/app_settings.dart';
@@ -145,14 +146,64 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
               children: [
                 const SizedBox(height: 6),
                 const SizedBox(height: 6),
+                
+                // ── BİLDİRİM İZNİ KONTROLÜ EKLENDİ ──
                 SwitchListTile(
                   title: Text(draft.appLanguage == 'en' ? 'Bar Notification' : 'Bar Bildirimi'),
                   value: draft.barNotificationsEnabled,
                   onChanged: (v) async {
-                    setState(() => draft = draft.copyWith(barNotificationsEnabled: v));
-                    await _commit(rescheduleNotifications: true);
+                    if (v == true) {
+                      final status = await Permission.notification.request();
+                      
+                      if (status.isGranted) {
+                        setState(() => draft = draft.copyWith(barNotificationsEnabled: true));
+                        await _commit(rescheduleNotifications: true);
+                      } else {
+                        if (!context.mounted) return;
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                            title: Row(
+                              children: [
+                                const Icon(Icons.notifications_off_rounded, color: Colors.orange),
+                                const SizedBox(width: 8),
+                                Text(draft.appLanguage == 'en' ? 'Permission Required' : 'İzin Gerekli', style: const TextStyle(fontSize: 18)),
+                              ],
+                            ),
+                            content: Text(
+                              draft.appLanguage == 'en'
+                                ? 'To receive daily motivation notifications, you need to allow notifications from your device settings.'
+                                : 'Size günlük motivasyon bildirimleri gönderebilmemiz için cihaz ayarlarından izin vermeniz gerekiyor.',
+                              style: const TextStyle(height: 1.4),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: Text(draft.appLanguage == 'en' ? 'Cancel' : 'İptal', style: const TextStyle(color: Colors.grey)),
+                              ),
+                              TextButton(
+                                onPressed: () async {
+                                  Navigator.pop(ctx);
+                                  await openAppSettings();
+                                },
+                                child: Text(
+                                  draft.appLanguage == 'en' ? 'Open Settings' : 'Ayarları Aç', 
+                                  style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                    } else {
+                      setState(() => draft = draft.copyWith(barNotificationsEnabled: false));
+                      await _commit(rescheduleNotifications: true);
+                    }
                   },
                 ),
+                // ── BİTİŞ ──
+
                 const SizedBox(height: 6),
                 if (draft.barNotificationsEnabled) ...[
                   ListTile(
@@ -241,4 +292,3 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
     return '$hh:$mms';
   }
 }
-

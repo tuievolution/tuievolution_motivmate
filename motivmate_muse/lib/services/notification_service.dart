@@ -83,26 +83,22 @@ class NotificationService {
     );
   }
 
-  /// Extracts the universal daily quote using a strict mathematical formula based on the date.
-  /// This ensures every user gets the exact same quote on the same day, 
-  /// regardless of how many ads they watch or quotes they skip.
+  /// Extracts the universal daily quote using the EXACT SAME formula as QuoteService
   Quote _getUniversalDailyQuote(List<Quote> allQuotes, tz.TZDateTime targetDate) {
     if (allQuotes.isEmpty) throw Exception("Quote list cannot be empty");
     
-    // Calculate total days since Unix Epoch (Jan 1, 1970)
-    // Using UTC time to ensure users in slightly different timezones 
-    // don't get off-by-one errors for the universal quote.
-    final utcDate = targetDate.toUtc();
-    final daysSinceEpoch = utcDate.millisecondsSinceEpoch ~/ (1000 * 60 * 60 * 24);
+    // EVRENSEL MATEMATİK: QuoteService ile birebir aynı hesaplama
+    final daysSinceEpoch = DateTime(targetDate.year, targetDate.month, targetDate.day)
+        .difference(DateTime(2024, 1, 1))
+        .inDays;
     
-    // Deterministic selection
     final universalIndex = daysSinceEpoch % allQuotes.length;
     return allQuotes[universalIndex];
   }
 
   Future<void> scheduleBarNotifications({
     required AppSettings settings,
-    required List<Quote> allQuotes, // Pass your ENTIRE master list of quotes here
+    required List<Quote> allQuotes, 
   }) async {
     if (allQuotes.isEmpty) return;
 
@@ -130,10 +126,9 @@ class NotificationService {
         
         if (date.isBefore(now)) continue;
 
-        // 1. Fetch the strict universal quote for this specific calendar day
+        // Fetch the strict universal quote for this specific calendar day
         final universalQuote = _getUniversalDailyQuote(allQuotes, date);
 
-        // 2. Schedule it
         try {
           await _plugin.zonedSchedule(
             id: dayOffset + 2000,
@@ -154,6 +149,35 @@ class NotificationService {
           );
         }
       }
+    } else if (settings.barTiming == BarTiming.intervalMinutes) {
+        // --- INTERVAL NOTIFICATIONS ---
+        // If the user wants notifications every X minutes, we just use today's daily quote
+        final targetQuote = _getUniversalDailyQuote(allQuotes, now);
+        final intervalMinutes = settings.barIntervalMinutes.clamp(15, 240); // Minimum 15 mins to prevent spam
+
+        for (int i = 1; i <= 8; i++) { // Schedule the next 8 interval occurrences
+          final scheduledDate = now.add(Duration(minutes: intervalMinutes * i));
+          
+          try {
+            await _plugin.zonedSchedule(
+              id: i + 3000,
+              title: 'MotivMood',
+              body: '"${targetQuote.text(settings.appLanguage)}"',
+              scheduledDate: scheduledDate,
+              notificationDetails: details,
+              androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            );
+          } catch (_) {
+            await _plugin.zonedSchedule(
+              id: i + 3000,
+              title: 'MotivMood',
+              body: '"${targetQuote.text(settings.appLanguage)}"',
+              scheduledDate: scheduledDate,
+              notificationDetails: details,
+              androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            );
+          }
+        }
     }
   }
 }

@@ -103,7 +103,6 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // --- THE FIX IS HERE ---
   Future<void> rescheduleBarNotifications() async {
     if (!settings.barNotificationsEnabled) {
       await notificationService.cancelAll();
@@ -114,7 +113,7 @@ class AppState extends ChangeNotifier {
       language: settings.appLanguage,
     );
     
-    // We now pass the entire list using the correct 'allQuotes' parameter!
+    // Fixed: Passing the entire quote list correctly to the updated NotificationService
     await notificationService.scheduleBarNotifications(
       settings: settings,
       allQuotes: allQuotesList.isEmpty ? [quote] : allQuotesList,
@@ -218,12 +217,24 @@ class AppState extends ChangeNotifier {
   Future<void> handleAppResumed(BuildContext context) async {
     _lastPopupShownAt ??= await storageService.loadLastPopupShownAt();
 
+    // 1. DATE CHECK: Refresh quote if the day has changed while app was in background
+    final prefs = await SharedPreferences.getInstance();
+    final savedDate = prefs.getString('dailyQuoteDate');
+    final now = DateTime.now();
+    final todayStr = '${now.year}-${now.month}-${now.day}';
+
+    if (savedDate != todayStr) {
+      await refreshQuote(force: false); 
+    }
+
+    // 2. Reschedule Notifications
     unawaited(() async {
       if (settings.barNotificationsEnabled) {
         await rescheduleBarNotifications();
       }
     }());
 
+    // 3. Evaluate Popup Rules
     if (!context.mounted) return;
     await _maybeShowPopup(context);
   }
