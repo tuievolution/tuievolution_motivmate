@@ -576,6 +576,114 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
             },
           ),
         ),
+        
+        // ── METİN EFEKTİ VE PARLAMA BÖLÜMÜ BAŞLANGICI ──
+        const SizedBox(height: 16),
+        const Divider(height: 30),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Text(
+            _l('Metin Efekti & Parlama', 'Text Effect & Glow'),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: DropdownButtonFormField<String>(
+            initialValue: _draft.textEffectId, // FIXED: Using initialValue here as well
+            isExpanded: true,
+            decoration: const InputDecoration(
+              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: [
+              DropdownMenuItem(value: 'none', child: Text(_l('Efekt Yok', 'No Effect'))),
+              DropdownMenuItem(value: 'shadow_soft', child: Text(_l('Yumuşak Gölge', 'Soft Shadow'))),
+              DropdownMenuItem(value: 'neon', child: Text(_l('Neon Parlama', 'Neon Glow'))),
+              DropdownMenuItem(value: 'cloud', child: Text(_l('Bulut (Geniş Işık)', 'Cloud Glow'))),
+              DropdownMenuItem(value: 'emboss', child: Text(_l('Kabarık (Emboss)', 'Emboss'))),
+            ],
+            onChanged: (v) {
+              if (v == null) return;
+              _notify(_draft.copyWith(textEffectId: v));
+            },
+          ),
+        ),
+
+        if (_draft.textEffectId != 'none') ...[
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              children: [
+                Icon(Icons.light_mode_outlined, size: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+                const SizedBox(width: 8),
+                Text(_l('Işık Şiddeti', 'Glow Intensity'), style: const TextStyle(fontSize: 13)),
+                Expanded(
+                  child: Slider(
+                    value: Color(_draft.effectColorValue).a.clamp(0.1, 1.0),
+                    min: 0.1,
+                    max: 1.0,
+                    activeColor: Color(_draft.effectColorValue).withValues(alpha: 1.0),
+                    onChanged: (val) {
+                      final currentColor = Color(_draft.effectColorValue);
+                      _notify(_draft.copyWith(
+                        effectColorValue: currentColor.withValues(alpha: val).toARGB32(), // FIXED: Using toARGB32()
+                      ));
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
+            child: Text(
+              _l('Parlama Rengi', 'Glow Color'),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              children: [
+                Colors.black, Colors.white, 
+                Colors.blueAccent, Colors.purpleAccent, 
+                Colors.pinkAccent, Colors.greenAccent, 
+                Colors.orangeAccent, Colors.redAccent,
+              ].map((color) {
+                final isSelected = Color(_draft.effectColorValue).withValues(alpha: 1.0) == color;
+                return GestureDetector(
+                  onTap: () {
+                    final currentAlpha = Color(_draft.effectColorValue).a; 
+                    _notify(_draft.copyWith(
+                      effectColorValue: color.withValues(alpha: currentAlpha).toARGB32(), // FIXED: Using toARGB32()
+                    ));
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 10),
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isSelected ? Colors.blueAccent : Colors.grey.shade600,
+                        width: isSelected ? 2.5 : 1.0,
+                      ),
+                      boxShadow: isSelected ? [
+                        BoxShadow(color: color.withValues(alpha: 0.4), blurRadius: 6)
+                      ] : null,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+        // ── BİTİŞ ──
 
         const SizedBox(height: 20),
 
@@ -601,6 +709,8 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
             opacity: _draft.cardOpacity,
             fontSize: _draft.fontSize,
             fontFamily: _draft.fontFamily,
+            textEffectId: _draft.textEffectId,
+            effectColor: Color(_draft.effectColorValue),
           ),
         ),
         const SizedBox(height: 20),
