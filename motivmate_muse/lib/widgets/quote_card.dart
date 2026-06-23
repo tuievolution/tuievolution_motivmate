@@ -1,49 +1,58 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Computes a contrasting shadow color for an effect as default.
-Color _contrastColor(Color base) {
-  final luminance = base.computeLuminance();
-  return luminance > 0.4 ? Colors.black : Colors.white;
-}
+/// Işık şiddeti (slider) ile uyumlu çalışan dinamik gölge ve efekt üreticisi
+List<Shadow> _buildShadows(String effectId, Color effectColor) {
+  // Slider'dan gelen şeffaflık (şiddet) değerini alıyoruz (0.0 - 1.0)
+  final double baseAlpha = effectColor.a;
 
-/// Returns a list of [Shadow]s for the given effect ID.
-List<Shadow> _buildShadows(String effectId, Color textColor, Color effectColor) {
-  final contrast = effectColor;
+  // Şiddet oranını bozmadan efekt katmanları oluşturan yardımcı fonksiyon
+  Color c(double multiplier) => effectColor.withValues(alpha: (baseAlpha * multiplier).clamp(0.0, 1.0));
+
   switch (effectId) {
     case 'shadow_soft':
-      return [
-        Shadow(color: contrast.withValues(alpha: 0.75), blurRadius: 6, offset: const Offset(1, 2)),
-      ];
+      return [Shadow(color: c(1.0), blurRadius: 8, offset: const Offset(2, 2))];
     case 'shadow_hard':
-      return [
-        Shadow(color: contrast, blurRadius: 0, offset: const Offset(2, 2)),
-      ];
+      return [Shadow(color: c(1.0), blurRadius: 0, offset: const Offset(3, 3))];
     case 'neon':
       return [
-        Shadow(color: contrast.withValues(alpha: 0.95), blurRadius: 4),
-        Shadow(color: contrast.withValues(alpha: 0.75), blurRadius: 12),
-        Shadow(color: contrast.withValues(alpha: 0.55), blurRadius: 24),
+        Shadow(color: c(1.0), blurRadius: 4),
+        Shadow(color: c(0.8), blurRadius: 12),
+        Shadow(color: c(0.6), blurRadius: 24),
+      ];
+    case 'neon_intense': // YENİ EFEKT
+      return [
+        Shadow(color: c(1.0), blurRadius: 2),
+        Shadow(color: c(0.9), blurRadius: 8),
+        Shadow(color: c(0.7), blurRadius: 20),
+        Shadow(color: c(0.5), blurRadius: 40),
       ];
     case 'cloud':
       return [
-        Shadow(color: contrast.withValues(alpha: 0.45), blurRadius: 14),
-        Shadow(color: contrast.withValues(alpha: 0.30), blurRadius: 28),
-        Shadow(color: contrast.withValues(alpha: 0.15), blurRadius: 48),
+        Shadow(color: c(0.6), blurRadius: 16),
+        Shadow(color: c(0.4), blurRadius: 32),
+        Shadow(color: c(0.2), blurRadius: 64),
       ];
     case 'retro':
       return List.generate(
-        8,
+        6,
         (i) => Shadow(
-          color: contrast.withValues(alpha: 0.25 - i * 0.02),
+          color: c(1.0 - i * 0.15),
           blurRadius: 0,
-          offset: Offset((i + 1).toDouble(), (i + 1).toDouble()),
+          offset: Offset((i + 1) * 1.5, (i + 1) * 1.5),
         ),
       );
+    case 'outline': // YENİ EFEKT (Dış Çizgi)
+      return [
+        Shadow(offset: const Offset(-1.5, -1.5), color: c(1.0)),
+        Shadow(offset: const Offset(1.5, -1.5), color: c(1.0)),
+        Shadow(offset: const Offset(1.5, 1.5), color: c(1.0)),
+        Shadow(offset: const Offset(-1.5, 1.5), color: c(1.0)),
+      ];
     case 'emboss':
       return [
-        Shadow(color: Colors.white.withValues(alpha: 0.6), blurRadius: 0, offset: const Offset(-1, -1)),
-        Shadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 0, offset: const Offset(1, 1)),
+        Shadow(color: Colors.white.withValues(alpha: baseAlpha * 0.6), blurRadius: 1, offset: const Offset(-1, -1)),
+        Shadow(color: Colors.black.withValues(alpha: baseAlpha * 0.8), blurRadius: 1, offset: const Offset(1, 1)),
       ];
     case 'none':
     default:
@@ -69,8 +78,7 @@ TextStyle _getGoogleFont(String fontFamily, {TextStyle? textStyle}) {
     case 'Caveat': return GoogleFonts.caveat(textStyle: textStyle);
     case 'Dancing Script': return GoogleFonts.dancingScript(textStyle: textStyle);
     case 'Roboto':
-    default:
-      return GoogleFonts.roboto(textStyle: textStyle);
+    default: return GoogleFonts.roboto(textStyle: textStyle);
   }
 }
 
@@ -109,16 +117,14 @@ class QuoteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveBackground =
-        cardBackgroundColor.withValues(alpha: opacity.clamp(0.0, 1.0));
+    final effectiveBackground = cardBackgroundColor.withValues(alpha: opacity.clamp(0.0, 1.0));
+    final effColor = effectColor ?? Colors.transparent;
+    final shadows = _buildShadows(textEffectId, effColor);
 
-    final effColor = effectColor ?? _contrastColor(quoteTextColor);
-    final shadows = _buildShadows(textEffectId, quoteTextColor, effColor);
+    // KİLİT KALDIRILDI: Font büyüklüğü artık 100'e kadar çıkabilir!
+    final clampedFontSize = fontSize.clamp(10.0, 100.0);
+    final authorFontSize = (clampedFontSize * 0.45).clamp(10.0, 24.0);
 
-    final clampedFontSize = fontSize.clamp(10.0, 42.0);
-    final authorFontSize = (clampedFontSize * 0.45).clamp(10.0, 18.0);
-
-    // Fontları yeni eşleştirici ile çağırıyoruz
     final baseStyle = _getGoogleFont(fontFamily, textStyle: TextStyle(
       color: quoteTextColor,
       fontSize: clampedFontSize,
@@ -144,7 +150,7 @@ class QuoteCard extends StatelessWidget {
             Icon(
               Icons.format_quote_rounded,
               color: quoteTextColor.withValues(alpha: 0.35),
-              size: 20,
+              size: (clampedFontSize * 0.8).clamp(20.0, 40.0),
             ),
             const SizedBox(height: 8),
             FittedBox(

@@ -496,15 +496,6 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
     final cardBg = Color(_draft.cardBackgroundColorValue);
     final effectColor = Color(_draft.effectColorValue);
 
-    // Görsel Efekt Tipleri
-    final effectOptions = [
-      {'id': 'none', 'icon': Icons.block, 'tr': 'Yok', 'en': 'None'},
-      {'id': 'shadow_soft', 'icon': Icons.layers_outlined, 'tr': 'Gölge', 'en': 'Shadow'},
-      {'id': 'neon', 'icon': Icons.lightbulb_outline, 'tr': 'Neon', 'en': 'Neon'},
-      {'id': 'cloud', 'icon': Icons.cloud_outlined, 'tr': 'Bulut', 'en': 'Cloud'},
-      {'id': 'emboss', 'icon': Icons.format_bold, 'tr': 'Kabarık', 'en': 'Emboss'},
-    ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -521,10 +512,10 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
             const Icon(Icons.text_fields, size: 16),
             Expanded(
               child: Slider(
-                value: _draft.fontSize.clamp(10, 42),
+                value: _draft.fontSize.clamp(10, 100), // Max limit increased to 100
                 min: 10,
-                max: 42,
-                divisions: 32,
+                max: 100,
+                divisions: 90,
                 label: '${_draft.fontSize.round()}pt',
                 onChanged: (v) => _notify(_draft.copyWith(fontSize: v)),
               ),
@@ -609,48 +600,36 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           ),
         ),
-        
-        // YENİ UI: Yan Yana İkonlu Seçim Hapları (Chips)
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            children: effectOptions.map((opt) {
-              final isSelected = _draft.textEffectId == opt['id'];
-              return GestureDetector(
-                onTap: () => _notify(_draft.copyWith(textEffectId: opt['id'] as String)),
-                child: Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isSelected ? Colors.blueAccent.withValues(alpha: 0.15) : Colors.transparent,
-                    border: Border.all(color: isSelected ? Colors.blueAccent : Colors.grey.shade700),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(opt['icon'] as IconData, size: 16, color: isSelected ? Colors.blueAccent : Colors.white70),
-                      const SizedBox(width: 6),
-                      Text(
-                        _l(opt['tr'] as String, opt['en'] as String),
-                        style: TextStyle(
-                          color: isSelected ? Colors.blueAccent : Colors.white70,
-                          fontSize: 13,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
+          child: DropdownButtonFormField<String>(
+            initialValue: _draft.textEffectId, 
+            isExpanded: true,
+            decoration: const InputDecoration(
+              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: [
+              DropdownMenuItem(value: 'none', child: Text(_l('Efekt Yok', 'No Effect'))),
+              DropdownMenuItem(value: 'shadow_soft', child: Text(_l('Yumuşak Gölge', 'Soft Shadow'))),
+              DropdownMenuItem(value: 'shadow_hard', child: Text(_l('Keskin Gölge', 'Hard Shadow'))),
+              DropdownMenuItem(value: 'outline', child: Text(_l('Dış Çizgi (Outline)', 'Outline'))),
+              DropdownMenuItem(value: 'neon', child: Text(_l('Hafif Neon Parlama', 'Soft Neon Glow'))),
+              DropdownMenuItem(value: 'neon_intense', child: Text(_l('Yoğun Neon', 'Intense Neon'))),
+              DropdownMenuItem(value: 'cloud', child: Text(_l('Bulut (Geniş Işık)', 'Cloud Glow'))),
+              DropdownMenuItem(value: 'retro', child: Text(_l('Retro / 3D', 'Retro 3D'))),
+              DropdownMenuItem(value: 'emboss', child: Text(_l('Kabarık (Emboss)', 'Emboss'))),
+            ],
+            onChanged: (v) {
+              if (v == null) return;
+              _notify(_draft.copyWith(textEffectId: v));
+            },
           ),
         ),
 
-        // Eğer efekt "Yok" değilse Işık ve Renk ayarlarını göster
         if (_draft.textEffectId != 'none') ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
@@ -666,7 +645,7 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
                     activeColor: effectColor.withValues(alpha: 1.0),
                     onChanged: (val) {
                       _notify(_draft.copyWith(
-                        effectColorValue: effectColor.withValues(alpha: val).toARGB32(),
+                        effectColorValue: effectColor.withValues(alpha: val).toARGB32(), 
                       ));
                     },
                   ),
@@ -681,8 +660,6 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
           ),
-          
-          // YENİ UI: Yazı rengiyle aynı Ortak Renk Paleti (Wrap)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Wrap(
@@ -727,7 +704,6 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
     );
   }
 
-  // HEM YAZI HEM DE EFEKT İÇİN ORTAK RENK PALETİ FONKSİYONU
   List<Widget> _buildPalette(Color current, {required bool isText}) {
     List<Widget> items = [];
 
@@ -741,7 +717,6 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
             if (isText) {
               _notify(_draft.copyWith(textColorValue: c.toARGB32()));
             } else {
-              // Efekt rengi değişirken slider'daki mevcut ışık şiddetini koru
               final currentAlpha = Color(_draft.effectColorValue).a;
               _notify(_draft.copyWith(effectColorValue: c.withValues(alpha: currentAlpha).toARGB32()));
             }
@@ -765,7 +740,6 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
       );
     }
 
-    // Özel Renk (Gökkuşağı Butonu)
     final customColor = isText ? _customTextColor : _customEffectColor;
     final isCustomSelected = customColor != null && current.toARGB32() == customColor.toARGB32();
     

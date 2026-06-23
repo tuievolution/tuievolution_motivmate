@@ -5,12 +5,6 @@ import '../app_state.dart';
 import '../models/app_settings.dart';
 import 'quote_card.dart';
 
-/// Full-screen editor that lets the user:
-///  • Drag the card body  → move in any direction (X and Y)
-///  • Drag any of the 8 resize handles → resize freely
-///
-/// All positions/sizes are normalised to [0..1] fractions of the
-/// available canvas so they stay correct on any screen size.
 class CardResizerPopup extends StatefulWidget {
   final AppSettings settings;
   final AppState appState;
@@ -26,13 +20,10 @@ class CardResizerPopup extends StatefulWidget {
 }
 
 class _CardResizerPopupState extends State<CardResizerPopup> {
-  // Normalised position of the card's top-left corner (0..1)
   late double _leftN;
   late double _topN;
-  // Normalised width fraction
   late double _widthN;
 
-  // Minimum card size in logical pixels (prevents collapsing to zero)
   static const double _minPx = 80;
 
   @override
@@ -43,7 +34,6 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
     _widthN = widget.settings.cardWidthN.clamp(0.01, 1.0);
   }
 
-  // ── helpers ─────────────────────────────────────────────────────────────
   ColorFilter? _buildColorFilter(String id) {
     switch (id) {
       case 'sepia':
@@ -70,13 +60,11 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
   }
 
   void _clampAll(double cW, double cH) {
-    // keep card horizontally within canvas
     _leftN = _leftN.clamp(0.0, (1.0 - _widthN).clamp(0.0, 1.0));
     _topN  = _topN.clamp(0.0, 1.0);
     _widthN  = _widthN.clamp(_minPx / cW, 1.0);
   }
 
-  // ── drag body → move ─────────────────────────────────────────────────────
   void _onBodyDrag(DragUpdateDetails d, double cW, double cH) {
     setState(() {
       _leftN += d.delta.dx / cW;
@@ -85,7 +73,6 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
     });
   }
 
-  // ── drag handles → resize width ──────────────────────────────────────────
   void _onHandleDrag({
     required DragUpdateDetails d,
     required double cW,
@@ -105,7 +92,6 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
     });
   }
 
-  // ── Network Image Builder ───────────────────────────────────────────────
   Widget _buildNetworkImage(String url, {ColorFilter? filter}) {
     Widget image = Image.network(
       url,
@@ -136,146 +122,151 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
     return image;
   }
 
-
-  // ── build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black87,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildAppBar(),
-            const SizedBox(height: 4),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final cW = constraints.maxWidth;
-                  final cH = constraints.maxHeight;
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // YÜZEY 1: ARKA PLAN RESMİ VE BULANIKLIK
+          Positioned.fill(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final cW = constraints.maxWidth;
+                final cH = constraints.maxHeight;
 
-                  final left   = _leftN   * cW;
-                  final top    = _topN    * cH;
-                  final width  = _widthN  * cW;
-                  final filter = _buildColorFilter(widget.settings.photoFilterId);
+                final left   = _leftN   * cW;
+                final top    = _topN    * cH;
+                final width  = _widthN  * cW;
+                final filter = _buildColorFilter(widget.settings.photoFilterId);
 
-                  return Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      // ── 1) Background Image exactly like Home Screen ─────
-                      Positioned.fill(
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            _buildNetworkImage(widget.appState.quote.imagePath),
-                            
-                            if (!widget.appState.isOriginalView) ...[
-                              if (filter != null)
-                                _buildNetworkImage(widget.appState.quote.imagePath, filter: filter),
-                                
-                              if (widget.settings.blurSigma > 0)
-                                Positioned.fill(
-                                  child: ClipRect(
-                                    child: BackdropFilter(
-                                      filter: ImageFilter.blur(
-                                        sigmaX: widget.settings.blurSigma,
-                                        sigmaY: widget.settings.blurSigma,
-                                      ),
-                                      child: Container(color: Colors.transparent),
-                                    ),
-                                  ),
-                                ),
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned.fill(
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          _buildNetworkImage(widget.appState.quote.imagePath),
+                          
+                          if (!widget.appState.isOriginalView) ...[
+                            if (filter != null)
+                              _buildNetworkImage(widget.appState.quote.imagePath, filter: filter),
+                              
+                            if (widget.settings.blurSigma > 0)
                               Positioned.fill(
-                                child: Container(
-                                  color: Colors.black.withValues(
-                                    alpha: widget.appState.isOriginalView
-                                        ? 0
-                                        : widget.settings.backgroundOverlayOpacity,
+                                child: ClipRect(
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(
+                                      sigmaX: widget.settings.blurSigma,
+                                      sigmaY: widget.settings.blurSigma,
+                                    ),
+                                    child: Container(color: Colors.transparent),
                                   ),
                                 ),
                               ),
-                            ],
-                          ],
-                        ),
-                      ),
-
-                      // ── 2) card body (draggable) ────────────────────────────
-                      Positioned(
-                        left: left,
-                        top: top,
-                        width: width,
-                        child: Stack(
-                          children: [
-                            // Card visual
-                            Container(
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: Colors.white54,
-                                  width: 1.5,
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(15),
-                                child: QuoteCard(
-                                  text: widget.appState.quote
-                                      .text(widget.settings.appLanguage),
-                                  author: widget.appState.quote
-                                      .author(widget.settings.appLanguage),
-                                  cardBackgroundColor: Color(
-                                      widget.settings.cardBackgroundColorValue),
-                                  quoteTextColor:
-                                      Color(widget.settings.textColorValue),
-                                  effectColor:
-                                      Color(widget.settings.effectColorValue),
-                                  opacity: widget.settings.cardOpacity,
-                                  fontSize: widget.settings.fontSize,
-                                  fontFamily: widget.settings.fontFamily,
-                                  textEffectId: widget.settings.textEffectId,
-                                  showBackground:
-                                      widget.settings.showCardBackground,
-                                  fillContainer: true,
-                                ),
-                              ),
-                            ),
-                            // Hit snatcher layer to capture pure drags
                             Positioned.fill(
-                              child: GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onPanUpdate: (d) => _onBodyDrag(d, cW, cH),
+                              child: Container(
+                                color: Colors.black.withValues(
+                                  alpha: widget.appState.isOriginalView
+                                      ? 0
+                                      : widget.settings.backgroundOverlayOpacity,
+                                ),
                               ),
                             ),
                           ],
-                        ),
+                        ],
                       ),
+                    ),
 
-                      // ── 3) Width resize handles ─────────────────────
-                      _handle(
-                        left: left - 10,
-                        top: top + 40, 
-                        tall: true,
-                        cursor: SystemMouseCursors.resizeColumn,
-                        onDrag: (d) => _onHandleDrag(d: d, cW: cW, cH: cH, left: true),
+                    // YÜZEY 2: KART GÖVDESİ (Sürüklenebilir)
+                    Positioned(
+                      left: left,
+                      top: top,
+                      width: width,
+                      child: Stack(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: Colors.white54,
+                                width: 1.5,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(15),
+                              child: QuoteCard(
+                                text: widget.appState.quote
+                                    .text(widget.settings.appLanguage),
+                                author: widget.appState.quote
+                                    .author(widget.settings.appLanguage),
+                                cardBackgroundColor: Color(
+                                    widget.settings.cardBackgroundColorValue),
+                                quoteTextColor:
+                                    Color(widget.settings.textColorValue),
+                                effectColor:
+                                    Color(widget.settings.effectColorValue),
+                                opacity: widget.settings.cardOpacity,
+                                fontSize: widget.settings.fontSize,
+                                fontFamily: widget.settings.fontFamily,
+                                textEffectId: widget.settings.textEffectId,
+                                showBackground:
+                                    widget.settings.showCardBackground,
+                                fillContainer: true,
+                              ),
+                            ),
+                          ),
+                          Positioned.fill(
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onPanUpdate: (d) => _onBodyDrag(d, cW, cH),
+                            ),
+                          ),
+                        ],
                       ),
-                      _handle(
-                        left: left + width - 6,
-                        top: top + 40,
-                        tall: true,
-                        cursor: SystemMouseCursors.resizeColumn,
-                        onDrag: (d) => _onHandleDrag(d: d, cW: cW, cH: cH, right: true),
-                      ),
-                    ],
-                  );
-                },
+                    ),
+
+                    // YÜZEY 3: YENİDEN BOYUTLANDIRMA TUTAMAÇLARI
+                    _handle(
+                      left: left - 10,
+                      top: top + 40, 
+                      tall: true,
+                      cursor: SystemMouseCursors.resizeColumn,
+                      onDrag: (d) => _onHandleDrag(d: d, cW: cW, cH: cH, left: true),
+                    ),
+                    _handle(
+                      left: left + width - 6,
+                      top: top + 40,
+                      tall: true,
+                      cursor: SystemMouseCursors.resizeColumn,
+                      onDrag: (d) => _onHandleDrag(d: d, cW: cW, cH: cH, right: true),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+
+          // YÜZEY 4 (EN ÜST KATMAN): KORUYUCU MENÜ ÇUBUĞU (Filtrelerin Altında Kalmasını Engeller)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.85),
+              child: SafeArea(
+                bottom: false,
+                child: _buildAppBar(),
               ),
             ),
-            const SizedBox(height: 12),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  // ── app bar ───────────────────────────────────────────────────────────────
+  // Orijinal App Bar Kodun
   Widget _buildAppBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -339,7 +330,7 @@ class _CardResizerPopupState extends State<CardResizerPopup> {
     );
   }
 
-  // ── single resize handle widget ───────────────────────────────────────────
+  // Orijinal Handle Kodun
   Widget _handle({
     required double left,
     required double top,
