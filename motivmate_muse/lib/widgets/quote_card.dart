@@ -20,7 +20,7 @@ List<Shadow> _buildShadows(String effectId, Color effectColor) {
         Shadow(color: c(0.8), blurRadius: 12),
         Shadow(color: c(0.6), blurRadius: 24),
       ];
-    case 'neon_intense': // YENİ EFEKT
+    case 'neon_intense': 
       return [
         Shadow(color: c(1.0), blurRadius: 2),
         Shadow(color: c(0.9), blurRadius: 8),
@@ -42,7 +42,7 @@ List<Shadow> _buildShadows(String effectId, Color effectColor) {
           offset: Offset((i + 1) * 1.5, (i + 1) * 1.5),
         ),
       );
-    case 'outline': // YENİ EFEKT (Dış Çizgi)
+    case 'outline': 
       return [
         Shadow(offset: const Offset(-1.5, -1.5), color: c(1.0)),
         Shadow(offset: const Offset(1.5, -1.5), color: c(1.0)),
@@ -121,8 +121,8 @@ class QuoteCard extends StatelessWidget {
     final effColor = effectColor ?? Colors.transparent;
     final shadows = _buildShadows(textEffectId, effColor);
 
-    // KİLİT KALDIRILDI: Font büyüklüğü artık 100'e kadar çıkabilir!
-    final clampedFontSize = fontSize.clamp(10.0, 100.0);
+    // Limitler Editor'e (48) uyumlu hale getirildi
+    final clampedFontSize = fontSize.clamp(10.0, 48.0);
     final authorFontSize = (clampedFontSize * 0.45).clamp(10.0, 24.0);
 
     final baseStyle = _getGoogleFont(fontFamily, textStyle: TextStyle(

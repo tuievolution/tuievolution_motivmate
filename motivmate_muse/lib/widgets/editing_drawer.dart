@@ -315,6 +315,8 @@ class _EditingDrawerState extends State<EditingDrawer> {
         initialSettings: draft,
         sampleText: quote.text(lang),
         sampleAuthor: quote.author(lang),
+        textTr: quote.textTr, // İki dili de kontrol etmek için ekledik
+        textEn: quote.textEn, // İki dili de kontrol etmek için ekledik
         language: lang,
         onChanged: (updated) {
           _updateDraft(updated);
@@ -394,6 +396,8 @@ class TextSettingsEditor extends StatefulWidget {
   final AppSettings initialSettings;
   final String sampleText;
   final String sampleAuthor;
+  final String textTr;
+  final String textEn;
   final String language;
   final void Function(AppSettings updated) onChanged;
 
@@ -402,6 +406,8 @@ class TextSettingsEditor extends StatefulWidget {
     required this.initialSettings,
     required this.sampleText,
     required this.sampleAuthor,
+    required this.textTr,
+    required this.textEn,
     required this.language,
     required this.onChanged,
   });
@@ -414,6 +420,7 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
   late AppSettings _draft;
   Color? _customTextColor;
   Color? _customEffectColor;
+  bool _showSizeWarning = false;
 
   @override
   void initState() {
@@ -425,7 +432,7 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
       _customTextColor = textC;
     }
 
-    final effectC = Color(_draft.effectColorValue).withValues(alpha: 1.0); // Compare pure RGB
+    final effectC = Color(_draft.effectColorValue).withValues(alpha: 1.0); 
     if (!_presetColors.any((c) => c.toARGB32() == effectC.toARGB32())) {
       _customEffectColor = effectC;
     }
@@ -444,6 +451,35 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
   void _notify(AppSettings next) {
     setState(() => _draft = next);
     widget.onChanged(next);
+  }
+
+  // YENİ GÜVENLİK SİSTEMİ: İki dili de kontrol eder ve kartın uzamasına izin verir.
+  double _calculateMaxAllowedFontSize() {
+    double maxFit = 48.0; // Maksimum limit 48'e sabitlendi
+    for (double fs = 10.0; fs <= 48.0; fs += 1.0) {
+      if (!_testTextFits(fs, widget.textTr) || !_testTextFits(fs, widget.textEn)) {
+        maxFit = fs - 1.0;
+        break;
+      }
+    }
+    return maxFit.clamp(10.0, 48.0);
+  }
+
+  bool _testTextFits(double fontSize, String text) {
+    // QuoteCard ile tam aynı yüksekliği (height: 1.25) simüle ediyoruz
+    final style = _getGoogleFontLocal(_draft.fontFamily, textStyle: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w500, height: 1.25));
+    final tp = TextPainter(
+      text: TextSpan(text: '"$text"', style: style),
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    );
+    
+    tp.layout(maxWidth: 260.0);
+    // Kartın dinamik olarak uzayabileceği maksimum yükseklik 360px olarak güncellendi.
+    if (tp.height > 360.0) {
+      return false;
+    }
+    return true;
   }
 
   void _pickCustomColor({required bool isText}) {
@@ -512,12 +548,21 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
             const Icon(Icons.text_fields, size: 16),
             Expanded(
               child: Slider(
-                value: _draft.fontSize.clamp(10, 100), // Max limit increased to 100
+                value: _draft.fontSize.clamp(10, 48), // Slider Limiti 48
                 min: 10,
-                max: 100,
-                divisions: 90,
+                max: 48,
+                divisions: 38,
                 label: '${_draft.fontSize.round()}pt',
-                onChanged: (v) => _notify(_draft.copyWith(fontSize: v)),
+                onChanged: (v) {
+                  final maxAllowed = _calculateMaxAllowedFontSize();
+                  if (v > maxAllowed) {
+                    _notify(_draft.copyWith(fontSize: maxAllowed));
+                    setState(() { _showSizeWarning = true; });
+                  } else {
+                    _notify(_draft.copyWith(fontSize: v));
+                    setState(() { _showSizeWarning = false; });
+                  }
+                },
               ),
             ),
             SizedBox(
@@ -527,6 +572,20 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
             ),
           ],
         ),
+        
+        // TAŞMA DURUMUNDA GÖRÜNEN UYARI MESAJI
+        if (_showSizeWarning)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+            child: Text(
+              _l(
+                'Metin çok uzun olduğu için maksimum boyuta sınırlandırıldı.',
+                'Text size restricted to fit the maximum card limits.',
+              ),
+              style: const TextStyle(color: Colors.orangeAccent, fontSize: 11, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+          ),
 
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
@@ -586,6 +645,12 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
             onChanged: (v) {
               if (v == null) return;
               _notify(_draft.copyWith(fontFamily: v));
+              
+              // Yazı tipi değiştiğinde yeni genişliğe göre boyutu tekrar kontrol et
+              final maxAllowed = _calculateMaxAllowedFontSize();
+              if (_draft.fontSize > maxAllowed) {
+                _notify(_draft.copyWith(fontSize: maxAllowed));
+              }
             },
           ),
         ),
@@ -600,10 +665,12 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           ),
         ),
+        
+        // EFEKT SEÇİCİ (DROPDOWN)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: DropdownButtonFormField<String>(
-            initialValue: _draft.textEffectId, 
+            initialValue: _draft.textEffectId,
             isExpanded: true,
             decoration: const InputDecoration(
               contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -622,12 +689,12 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
               DropdownMenuItem(value: 'emboss', child: Text(_l('Kabarık (Emboss)', 'Emboss'))),
             ],
             onChanged: (v) {
-              if (v == null) return;
-              _notify(_draft.copyWith(textEffectId: v));
+              if (v != null) _notify(_draft.copyWith(textEffectId: v));
             },
           ),
         ),
 
+        // Eğer efekt "Yok" değilse Işık ve Renk ayarlarını göster
         if (_draft.textEffectId != 'none') ...[
           const SizedBox(height: 12),
           Padding(
@@ -645,7 +712,7 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
                     activeColor: effectColor.withValues(alpha: 1.0),
                     onChanged: (val) {
                       _notify(_draft.copyWith(
-                        effectColorValue: effectColor.withValues(alpha: val).toARGB32(), 
+                        effectColorValue: effectColor.withValues(alpha: val).toARGB32(),
                       ));
                     },
                   ),
@@ -660,6 +727,7 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
           ),
+          
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Wrap(
@@ -704,6 +772,7 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
     );
   }
 
+  // HEM YAZI HEM DE EFEKT İÇİN ORTAK RENK PALETİ FONKSİYONU
   List<Widget> _buildPalette(Color current, {required bool isText}) {
     List<Widget> items = [];
 
@@ -717,6 +786,7 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
             if (isText) {
               _notify(_draft.copyWith(textColorValue: c.toARGB32()));
             } else {
+              // Efekt rengi değişirken slider'daki mevcut ışık şiddetini koru
               final currentAlpha = Color(_draft.effectColorValue).a;
               _notify(_draft.copyWith(effectColorValue: c.withValues(alpha: currentAlpha).toARGB32()));
             }
@@ -740,6 +810,7 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
       );
     }
 
+    // Özel Renk (Gökkuşağı Butonu)
     final customColor = isText ? _customTextColor : _customEffectColor;
     final isCustomSelected = customColor != null && current.toARGB32() == customColor.toARGB32();
     
@@ -777,5 +848,27 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
     );
 
     return items;
+  }
+}
+
+/// Sanal ölçümler için yerel yazı tipi eşleştirici fonksiyon
+TextStyle _getGoogleFontLocal(String fontFamily, {TextStyle? textStyle}) {
+  switch (fontFamily) {
+    case 'Lato': return GoogleFonts.lato(textStyle: textStyle);
+    case 'Open Sans': return GoogleFonts.openSans(textStyle: textStyle);
+    case 'Montserrat': return GoogleFonts.montserrat(textStyle: textStyle);
+    case 'Oswald': return GoogleFonts.oswald(textStyle: textStyle);
+    case 'Raleway': return GoogleFonts.raleway(textStyle: textStyle);
+    case 'Merriweather': return GoogleFonts.merriweather(textStyle: textStyle);
+    case 'Playfair Display': return GoogleFonts.playfairDisplay(textStyle: textStyle);
+    case 'Ubuntu': return GoogleFonts.ubuntu(textStyle: textStyle);
+    case 'Poppins': return GoogleFonts.poppins(textStyle: textStyle);
+    case 'Nunito': return GoogleFonts.nunito(textStyle: textStyle);
+    case 'Comic Neue': return GoogleFonts.comicNeue(textStyle: textStyle);
+    case 'Pacifico': return GoogleFonts.pacifico(textStyle: textStyle);
+    case 'Caveat': return GoogleFonts.caveat(textStyle: textStyle);
+    case 'Dancing Script': return GoogleFonts.dancingScript(textStyle: textStyle);
+    case 'Roboto':
+    default: return GoogleFonts.roboto(textStyle: textStyle);
   }
 }
