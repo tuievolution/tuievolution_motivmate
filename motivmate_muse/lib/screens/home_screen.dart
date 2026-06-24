@@ -54,19 +54,40 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!scaffoldCtx.mounted) return;
 
     if (canWatch) {
+      ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
+        const SnackBar(content: Text('Reklam yükleniyor, lütfen bekleyin...'), duration: Duration(seconds: 1)),
+      );
+
       ads.RewardedAd.load(
         adUnitId: 'ca-app-pub-3940256099942544/5224354917',
         request: const ads.AdRequest(),
         rewardedAdLoadCallback: ads.RewardedAdLoadCallback(
           onAdLoaded: (ad) {
+            // Ödül bayrağını burada tutuyoruz
+            bool isRewardEarned = false;
+
+            ad.fullScreenContentCallback = ads.FullScreenContentCallback(
+              onAdDismissedFullScreenContent: (ad) async {
+                ad.dispose();
+                // DÜZELTME BURADA: Reklam kapandığı (ekran uyandığı) an sözü yenile
+                if (isRewardEarned) {
+                  await appState.incrementAdWatchAndRefreshQuote();
+                }
+              },
+              onAdFailedToShowFullScreenContent: (ad, error) {
+                ad.dispose();
+              },
+            );
+
             ad.show(onUserEarnedReward: (ad, reward) {
-              appState.incrementAdWatchAndRefreshQuote();
+              // Reklam başarıyla izlendiğinde sadece bayrağı işaretle
+              isRewardEarned = true;
             });
           },
           onAdFailedToLoad: (error) {
             if (!scaffoldCtx.mounted) return;
             ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
-              const SnackBar(content: Text('Reklam yüklenemedi. Lütfen tekrar deneyin.')),
+              SnackBar(content: Text('Reklam hatası (Kod: ${error.code}). İnternetinizi kontrol edin veya AndroidManifest dosyanıza bakın.')),
             );
           },
         ),
@@ -74,7 +95,11 @@ class _HomeScreenState extends State<HomeScreen> {
     } else {
       ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
         SnackBar(
-          content: Text(appState.settings.appLanguage == 'en' ? 'Daily limit reached (3/3).' : 'Günlük resim değiştirme limiti doldu (3/3).'),
+          content: Text(
+            appState.settings.appLanguage == 'en' 
+                ? 'Daily extra quote limit reached (3/3).' 
+                : 'Günlük ekstra alıntı değiştirme hakkınız doldu (3/3).'
+          ),
         ),
       );
     }
@@ -104,8 +129,21 @@ class _HomeScreenState extends State<HomeScreen> {
         request: const ads.AdRequest(),
         rewardedAdLoadCallback: ads.RewardedAdLoadCallback(
           onAdLoaded: (ad) {
+            bool isRewardEarned = false;
+
+            ad.fullScreenContentCallback = ads.FullScreenContentCallback(
+              onAdDismissedFullScreenContent: (ad) {
+                ad.dispose();
+                if (isRewardEarned) executeCapture();
+              },
+              onAdFailedToShowFullScreenContent: (ad, error) {
+                ad.dispose();
+                executeCapture(); 
+              },
+            );
+
             ad.show(onUserEarnedReward: (ad, reward) {
-              executeCapture();
+              isRewardEarned = true;
             });
           },
           onAdFailedToLoad: (error) {
@@ -198,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     Positioned.fill(
                       child: Container(
-                color: Colors.black.withValues(
+                        color: Colors.black.withValues(
                           alpha: appState.isOriginalView
                               ? 0
                               : appState.settings.backgroundOverlayOpacity,
