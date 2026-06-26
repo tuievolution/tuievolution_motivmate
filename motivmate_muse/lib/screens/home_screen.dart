@@ -55,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (canWatch) {
       ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
-        const SnackBar(content: Text('Reklam yükleniyor, lütfen bekleyin...'), duration: Duration(seconds: 1)),
+        const SnackBar(content: Text('Reklam yükleniyor...'), duration: Duration(seconds: 1)),
       );
 
       ads.RewardedAd.load(
@@ -63,15 +63,15 @@ class _HomeScreenState extends State<HomeScreen> {
         request: const ads.AdRequest(),
         rewardedAdLoadCallback: ads.RewardedAdLoadCallback(
           onAdLoaded: (ad) {
-            // Ödül bayrağını burada tutuyoruz
             bool isRewardEarned = false;
 
             ad.fullScreenContentCallback = ads.FullScreenContentCallback(
               onAdDismissedFullScreenContent: (ad) async {
                 ad.dispose();
-                // DÜZELTME BURADA: Reklam kapandığı (ekran uyandığı) an sözü yenile
                 if (isRewardEarned) {
+                  // GÜNCELLEME: setState ile UI'ı manuel olarak yenilemeye ZORLUYORUZ.
                   await appState.incrementAdWatchAndRefreshQuote();
+                  if (mounted) setState(() {}); 
                 }
               },
               onAdFailedToShowFullScreenContent: (ad, error) {
@@ -80,14 +80,13 @@ class _HomeScreenState extends State<HomeScreen> {
             );
 
             ad.show(onUserEarnedReward: (ad, reward) {
-              // Reklam başarıyla izlendiğinde sadece bayrağı işaretle
               isRewardEarned = true;
             });
           },
           onAdFailedToLoad: (error) {
             if (!scaffoldCtx.mounted) return;
             ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
-              SnackBar(content: Text('Reklam hatası (Kod: ${error.code}). İnternetinizi kontrol edin veya AndroidManifest dosyanıza bakın.')),
+              const SnackBar(content: Text('Reklam bağlantı hatası. İnternetinizi kontrol edin.')),
             );
           },
         ),
@@ -195,223 +194,227 @@ class _HomeScreenState extends State<HomeScreen> {
       orElse: () => themePresets.first,
     );
 
+    // GÜNCELLEME: Ana Ekran her zaman üst Status Bar'ı hesaba katmalı.
     return Scaffold(
       drawer: const SettingsDrawer(),
-      body: SafeArea(
-        child: Builder(
-          builder: (scaffoldContext) => LayoutBuilder(
-            builder: (ctx, constraints) {
-                final effectiveBlur = appState.isOriginalView ? 0.0 : appState.settings.blurSigma;
-                final showCard = !appState.isOriginalView && appState.isQuoteVisible;
-                final showCardBg = appState.settings.showCardBackground;
+      body: Builder(
+        builder: (scaffoldContext) => LayoutBuilder(
+          builder: (ctx, constraints) {
+              final effectiveBlur = appState.isOriginalView ? 0.0 : appState.settings.blurSigma;
+              final showCard = !appState.isOriginalView && appState.isQuoteVisible;
+              final showCardBg = appState.settings.showCardBackground;
 
-                final backgroundImage = CachedNetworkImage(
-                  imageUrl: appState.quote.imagePath,
-                  cacheManager: customCacheManager,
-                  fit: BoxFit.cover,
-                );
+              final backgroundImage = CachedNetworkImage(
+                imageUrl: appState.quote.imagePath,
+                cacheManager: customCacheManager,
+                fit: BoxFit.cover,
+              );
 
-                final colorFilter = appState.isOriginalView
-                    ? null
-                    : _buildColorFilter(appState.settings.photoFilterId);
+              final colorFilter = appState.isOriginalView
+                  ? null
+                  : _buildColorFilter(appState.settings.photoFilterId);
 
-                final blurredBackground = Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    backgroundImage,
-                    if (colorFilter != null)
-                      Opacity(
-                        opacity: appState.settings.photoFilterIntensity,
-                        child: ColorFiltered(colorFilter: colorFilter, child: backgroundImage),
-                      ),
-                    if (effectiveBlur > 0)
-                      Positioned.fill(
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(
-                            sigmaX: effectiveBlur,
-                            sigmaY: effectiveBlur,
-                          ),
-                          child: Container(color: Colors.transparent),
-                        ),
-                      ),
+              final blurredBackground = Stack(
+                fit: StackFit.expand,
+                children: [
+                  backgroundImage,
+                  if (colorFilter != null)
+                    Opacity(
+                      opacity: appState.settings.photoFilterIntensity,
+                      child: ColorFiltered(colorFilter: colorFilter, child: backgroundImage),
+                    ),
+                  if (effectiveBlur > 0)
                     Positioned.fill(
-                      child: Container(
-                        color: Colors.black.withValues(
-                          alpha: appState.isOriginalView
-                              ? 0
-                              : appState.settings.backgroundOverlayOpacity,
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(
+                          sigmaX: effectiveBlur,
+                          sigmaY: effectiveBlur,
                         ),
+                        child: Container(color: Colors.transparent),
                       ),
                     ),
-                  ],
-                );
+                  Positioned.fill(
+                    child: Container(
+                      color: Colors.black.withValues(
+                        alpha: appState.isOriginalView
+                            ? 0
+                            : appState.settings.backgroundOverlayOpacity,
+                      ),
+                    ),
+                  ),
+                ],
+              );
 
-                return Stack(
-                  children: [
-                    Positioned.fill(
-                      child: Screenshot(
-                        controller: _screenshotController,
-                        child: Stack(
-                          children: [
-                            Positioned.fill(child: blurredBackground),
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: Screenshot(
+                      controller: _screenshotController,
+                      child: Stack(
+                        children: [
+                          Positioned.fill(child: blurredBackground),
 
-                            // ── MotivMood Header ──────────────────────────────────
-                            Positioned(
-                              top: 20,
-                              left: 0,
-                              right: 0,
-                              child: Column(
-                                children: [
-                                  Text(
-                                    'MotivMood',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 3.0,
-                                      shadows: [
-                                        Shadow(
-                                          color: Colors.black.withValues(alpha: 0.6),
-                                          blurRadius: 16,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ],
-                                    ),
+                          // ── MotivMood Header ──────────────────────────────────
+                          // GÜNCELLEME: Yukarıdan boşluk bırakarak Status Bar'ı koruyoruz.
+                          Positioned(
+                            top: MediaQuery.of(context).padding.top + 20,
+                            left: 0,
+                            right: 0,
+                            child: Column(
+                              children: [
+                                Text(
+                                  'MotivMood',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 3.0,
+                                    shadows: [
+                                      Shadow(
+                                        color: Colors.black.withValues(alpha: 0.6),
+                                        blurRadius: 16,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(height: 2),
-                                  Container(
-                                    height: 2,
-                                    width: 40,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.7),
-                                      borderRadius: BorderRadius.circular(1),
-                                    ),
+                                ),
+                                const SizedBox(height: 2),
+                                Container(
+                                  height: 2,
+                                  width: 40,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                    borderRadius: BorderRadius.circular(1),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
+                          ),
 
-                            // ── Quote Card ────────────────────────────────────────
-                            if (showCard) ...[
-                              (() {
-                                final quoteText = appState.quote.text(appState.settings.appLanguage);
-                                final quoteAuthor = appState.quote.author(appState.settings.appLanguage);
+                          // ── Quote Card ────────────────────────────────────────
+                          if (showCard) ...[
+                            (() {
+                              final quoteText = appState.quote.text(appState.settings.appLanguage);
+                              final quoteAuthor = appState.quote.author(appState.settings.appLanguage);
 
-                                double effectiveFontSize = appState.settings.fontSize;
-                                double effectiveTopN = appState.settings.cardTopN;
+                              double effectiveFontSize = appState.settings.fontSize;
+                              double effectiveTopN = appState.settings.cardTopN;
 
-                                // Dynamically shrink and shift top position if quote text is very long
-                                final textLen = quoteText.length;
-                                if (textLen > 100) {
-                                  final shrinkFactor = ((textLen - 100) / 160.0).clamp(0.0, 0.40);
-                                  effectiveFontSize = (effectiveFontSize * (1.0 - shrinkFactor)).clamp(10.0, 28.0);
+                              final textLen = quoteText.length;
+                              if (textLen > 100) {
+                                final shrinkFactor = ((textLen - 100) / 160.0).clamp(0.0, 0.40);
+                                effectiveFontSize = (effectiveFontSize * (1.0 - shrinkFactor)).clamp(10.0, 28.0);
 
-                                  final shiftFactor = shrinkFactor * 0.18;
-                                  effectiveTopN = (effectiveTopN - shiftFactor).clamp(0.04, 0.95);
-                                }
+                                final shiftFactor = shrinkFactor * 0.18;
+                                effectiveTopN = (effectiveTopN - shiftFactor).clamp(0.04, 0.95);
+                              }
 
-                                return Positioned(
-                                  left: appState.settings.cardLeftN.clamp(0.0, 1.0) * constraints.maxWidth,
-                                  top:  effectiveTopN.clamp(0.0, 1.0)  * constraints.maxHeight,
-                                  width:  appState.settings.cardWidthN.clamp(0.01, 1.0) * constraints.maxWidth,
-                                  child: QuoteCard(
-                                    text: quoteText,
-                                    author: quoteAuthor,
-                                    cardBackgroundColor: Color(appState.settings.cardBackgroundColorValue),
-                                    quoteTextColor: Color(appState.settings.textColorValue),
-                                    effectColor: Color(appState.settings.effectColorValue),
-                                    opacity: appState.settings.cardOpacity,
-                                    fontSize: effectiveFontSize,
-                                    fontFamily: appState.settings.fontFamily,
-                                    textEffectId: appState.settings.textEffectId,
-                                    showBackground: showCardBg,
-                                    fillContainer: true,
+                              return Positioned(
+                                left: appState.settings.cardLeftN.clamp(0.0, 1.0) * constraints.maxWidth,
+                                top:  effectiveTopN.clamp(0.0, 1.0)  * constraints.maxHeight,
+                                width:  appState.settings.cardWidthN.clamp(0.01, 1.0) * constraints.maxWidth,
+                                child: QuoteCard(
+                                  text: quoteText,
+                                  author: quoteAuthor,
+                                  cardBackgroundColor: Color(appState.settings.cardBackgroundColorValue),
+                                  quoteTextColor: Color(appState.settings.textColorValue),
+                                  effectColor: Color(appState.settings.effectColorValue),
+                                  opacity: appState.settings.cardOpacity,
+                                  fontSize: effectiveFontSize,
+                                  fontFamily: appState.settings.fontFamily,
+                                  textEffectId: appState.settings.textEffectId,
+                                  showBackground: showCardBg,
+                                  fillContainer: true,
+                                ),
+                              );
+                            }()),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // ── Bottom Action Bar ─────────────────────────────────
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    // GÜNCELLEME: SafeArea insets kullanarak alt çentikten (home indicator) korunuyoruz
+                    bottom: MediaQuery.of(context).padding.bottom + 24,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.88),
+                          borderRadius: BorderRadius.circular(26),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.18),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _ActionButton(
+                              icon: Icons.edit,
+                              onTap: () {
+                                showModalBottomSheet<void>(
+                                  context: scaffoldContext,
+                                  isScrollControlled: true,
+                                  backgroundColor: preset.backgroundScaffoldColor,
+                                  shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(18),
+                                    ),
+                                  ),
+                                  // GÜNCELLEME: Ekranın %85'ini kaplasın, Status barı yutmasın!
+                                  builder: (_) => SizedBox(
+                                    height: MediaQuery.of(context).size.height * 0.85,
+                                    child: EditingDrawer(
+                                      appState: appState,
+                                      onDownload: () => _saveCurrentView(scaffoldContext, appState, preset),
+                                    ),
                                   ),
                                 );
-                              }()),
-                            ],
+                              },
+                            ),
+                            const SizedBox(width: 10),
+                            _ActionButton(
+                              icon: appState.isQuoteVisible
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              onTap: appState.toggleQuoteVisibility,
+                            ),
+                            const SizedBox(width: 10),
+                            _ActionButton(
+                              icon: Icons.download,
+                              accentColor: preset.accentColor,
+                              onTap: () => _saveCurrentView(scaffoldContext, appState, preset),
+                            ),
+                            const SizedBox(width: 10),
+                            _ActionButton(
+                              icon: Icons.shuffle,
+                              onTap: () => _changeImageAd(scaffoldContext, appState),
+                            ),
+                            const SizedBox(width: 10),
+                            _ActionButton(
+                              icon: Icons.settings,
+                              onTap: () => Scaffold.of(scaffoldContext).openDrawer(),
+                            ),
                           ],
                         ),
                       ),
                     ),
-
-                    // ── Bottom Action Bar ─────────────────────────────────
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 24,
-                      child: Center(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.88),
-                            borderRadius: BorderRadius.circular(26),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.18),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _ActionButton(
-                                icon: Icons.edit,
-                                onTap: () {
-                                  showModalBottomSheet<void>(
-                                    context: scaffoldContext,
-                                    isScrollControlled: true,
-                                    backgroundColor: preset.backgroundScaffoldColor,
-                                    shape: const RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.vertical(
-                                        top: Radius.circular(18),
-                                      ),
-                                    ),
-                                    builder: (_) => EditingDrawer(
-                                      appState: appState,
-                                      onDownload: () => _saveCurrentView(scaffoldContext, appState, preset),
-                                    ),
-                                  );
-                                },
-                              ),
-                              const SizedBox(width: 10),
-                              _ActionButton(
-                                icon: appState.isQuoteVisible
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                onTap: appState.toggleQuoteVisibility,
-                              ),
-                              const SizedBox(width: 10),
-                              _ActionButton(
-                                icon: Icons.download,
-                                accentColor: preset.accentColor,
-                                onTap: () => _saveCurrentView(scaffoldContext, appState, preset),
-                              ),
-                              const SizedBox(width: 10),
-                              _ActionButton(
-                                icon: Icons.shuffle,
-                                onTap: () => _changeImageAd(scaffoldContext, appState),
-                              ),
-                              const SizedBox(width: 10),
-                              _ActionButton(
-                                icon: Icons.settings,
-                                onTap: () => Scaffold.of(scaffoldContext).openDrawer(),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-            },
-          ),
+                  ),
+                ],
+              );
+          },
         ),
       ),
     );
