@@ -47,6 +47,8 @@ class _EditingDrawerState extends State<EditingDrawer> {
         .firstWhere((e) => e.id == draft.themeId, orElse: () => themePresets.first);
 
     return SafeArea(
+      top: true, // Start under notificationbar
+      bottom: true,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14),
         child: DefaultTabController(
