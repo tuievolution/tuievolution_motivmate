@@ -670,11 +670,9 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
             ),
             items: [
               DropdownMenuItem(value: 'none', child: Text(_l('Efekt Yok', 'No Effect'))),
-              DropdownMenuItem(value: 'shadow_soft', child: Text(_l('Yumuşak Gölge', 'Soft Shadow'))),
-              DropdownMenuItem(value: 'shadow_hard', child: Text(_l('Keskin Gölge', 'Hard Shadow'))),
+              DropdownMenuItem(value: 'shadow', child: Text(_l('Gölge', 'Shadow'))),
               DropdownMenuItem(value: 'outline', child: Text(_l('Dış Çizgi (Outline)', 'Outline'))),
-              DropdownMenuItem(value: 'neon', child: Text(_l('Hafif Neon Parlama', 'Soft Neon Glow'))),
-              DropdownMenuItem(value: 'neon_intense', child: Text(_l('Yoğun Neon', 'Intense Neon'))),
+              DropdownMenuItem(value: 'neon', child: Text(_l('Neon Parlama', 'Neon Glow'))),
               DropdownMenuItem(value: 'cloud', child: Text(_l('Bulut (Geniş Işık)', 'Cloud Glow'))),
               DropdownMenuItem(value: 'retro', child: Text(_l('Retro / 3D', 'Retro 3D'))),
               DropdownMenuItem(value: 'emboss', child: Text(_l('Kabarık (Emboss)', 'Emboss'))),
