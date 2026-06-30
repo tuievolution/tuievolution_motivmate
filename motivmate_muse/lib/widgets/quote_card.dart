@@ -52,7 +52,8 @@ List<Shadow> _buildShadows(String effectId, Color effectColor) {
     case 'emboss':
       return [
         Shadow(color: Colors.white.withValues(alpha: baseAlpha * 0.6), blurRadius: 1, offset: const Offset(-1, -1)),
-        Shadow(color: Colors.black.withValues(alpha: baseAlpha * 0.8), blurRadius: 1, offset: const Offset(1, 1)),
+        // Alt gölge kısmı artık sabit siyah değil, kullanıcının seçtiği renk (c(1.0)) olacak:
+        Shadow(color: c(1.0), blurRadius: 1, offset: const Offset(1, 1)),
       ];
     case 'none':
     default:

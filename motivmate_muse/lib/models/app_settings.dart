@@ -100,7 +100,7 @@ class AppSettings {
       fontSize: 22,
       textColorValue: 0xFF2A1B12,
       effectColorValue: 0xFF000000,
-      fontFamily: 'Roboto',
+      fontFamily: 'Open Sans',
       textEffectId: 'none',
       barNotificationsEnabled: false,
       barTiming: BarTiming.intervalMinutes,

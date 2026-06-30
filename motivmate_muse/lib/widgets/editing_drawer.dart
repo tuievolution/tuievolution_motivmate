@@ -207,21 +207,24 @@ class _EditingDrawerState extends State<EditingDrawer> {
             },
           ),
         ),
-        const SizedBox(height: 12),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(_l('Filtre Yoğunluğu', 'Filter Intensity')),
-        ),
-        Slider(
-          value: draft.photoFilterIntensity,
-          min: 0,
-          max: 1,
-          divisions: 20,
-          label: '${(draft.photoFilterIntensity * 100).toStringAsFixed(0)}%',
-          onChanged: (v) {
-            _updateDraft(draft.copyWith(photoFilterIntensity: v));
-          },
-        ),
+        if (draft.photoFilterId != 'none') ...[
+          const SizedBox(height: 12),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(_l('Filtre Yoğunluğu', 'Filter Intensity')),
+          ),
+          Slider(
+            value: draft.photoFilterIntensity,
+            min: 0,
+            max: 1,
+            divisions: 20,
+            label: '${(draft.photoFilterIntensity * 100).toStringAsFixed(0)}%',
+            onChanged: (v) {
+              _updateDraft(draft.copyWith(photoFilterIntensity: v));
+            },
+          ),
+        ],
+        
         const SizedBox(height: 20),
       ],
     );
@@ -375,9 +378,9 @@ class _EditingDrawerState extends State<EditingDrawer> {
 // ── TEXT SETTINGS EDITOR ──
 
 const List<String> _availableFonts = [
-  'Roboto', 'Lato', 'Open Sans', 'Montserrat', 'Oswald',
-  'Raleway', 'Merriweather', 'Playfair Display', 'Ubuntu',
-  'Poppins', 'Nunito', 'Comic Neue', 'Pacifico', 'Caveat', 'Dancing Script'
+  'Caveat', 'Comic Neue', 'Dancing Script', 'Lato', 'Merriweather',
+  'Montserrat', 'Nunito', 'Open Sans', 'Oswald', 'Pacifico',
+  'Playfair Display', 'Poppins', 'Raleway', 'Roboto', 'Ubuntu'
 ];
 
 const List<Color> _presetColors = [
@@ -653,14 +656,12 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
             ),
             items: [
               DropdownMenuItem(value: 'none', child: Text(_l('Efekt Yok', 'No Effect'))),
-              DropdownMenuItem(value: 'shadow_soft', child: Text(_l('Yumuşak Gölge', 'Soft Shadow'))),
-              DropdownMenuItem(value: 'shadow_hard', child: Text(_l('Keskin Gölge', 'Hard Shadow'))),
-              DropdownMenuItem(value: 'outline', child: Text(_l('Dış Çizgi (Outline)', 'Outline'))),
-              DropdownMenuItem(value: 'neon', child: Text(_l('Hafif Neon Parlama', 'Soft Neon Glow'))),
-              DropdownMenuItem(value: 'neon_intense', child: Text(_l('Yoğun Neon', 'Intense Neon'))),
+              DropdownMenuItem(value: 'shadow', child: Text(_l('Gölge', 'Shadow'))),
+              DropdownMenuItem(value: 'outline', child: Text(_l('Outline', 'Outline'))),
+              DropdownMenuItem(value: 'neon', child: Text(_l('Neon Parlama', ' Neon Glow'))),
               DropdownMenuItem(value: 'cloud', child: Text(_l('Bulut (Geniş Işık)', 'Cloud Glow'))),
               DropdownMenuItem(value: 'retro', child: Text(_l('Retro / 3D', 'Retro 3D'))),
-              DropdownMenuItem(value: 'emboss', child: Text(_l('Kabarık (Emboss)', 'Emboss'))),
+              DropdownMenuItem(value: 'emboss', child: Text(_l('Emboss', 'Emboss'))),
             ],
             onChanged: (v) {
               if (v == null) return;
@@ -669,8 +670,8 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
           ),
         ),
 
-        // 4. EFEKT ÖZELLEŞTİRMELERİ (Emboss değilse ve Efekt Yok değilse gösterilir)
-        if (_draft.textEffectId != 'none' && _draft.textEffectId != 'emboss') ...[
+        // 4. EFEKT ÖZELLEŞTİRMELERİ (Efekt Yok değilse gösterilir)
+        if (_draft.textEffectId != 'none') ...[
           const SizedBox(height: 10),
           
           // Parlama Rengi - Açılabilir Liste (ExpansionTile) Yapıldı
