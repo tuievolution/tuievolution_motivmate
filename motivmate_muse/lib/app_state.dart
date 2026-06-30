@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -26,6 +27,9 @@ class AppState extends ChangeNotifier {
   DateTime? _lastPopupShownAt;
   bool _popupInFlight = false;
 
+  // Görülen sözlerin listesi (Reklamsız geçiş için)
+  final List<Quote> _seenQuotes = [];
+
   AppState({
     required this.storageService,
     required this.quoteService,
@@ -35,7 +39,10 @@ class AppState extends ChangeNotifier {
     required Quote initialQuote,
   })  : settings = initialSettings,
         quote = initialQuote,
-        isQuoteVisible = true;
+        isQuoteVisible = true {
+    // Uygulama ilk açıldığındaki günün sözünü görülenlere ekliyoruz.
+    _seenQuotes.add(quote);
+  }
 
   Future<void> initialize() async {
     _lastPopupShownAt = await storageService.loadLastPopupShownAt();
@@ -71,20 +78,32 @@ class AppState extends ChangeNotifier {
   }
 
   Future<bool> canWatchAd() async {
-    if (billingService.isPremium) return true;
     final count = await getAdsWatchedToday();
     return count < 3; 
   }
 
   Future<void> incrementAdWatchAndRefreshQuote() async {
-    if (!billingService.isPremium) {
-      final prefs = await SharedPreferences.getInstance();
-      final count = await getAdsWatchedToday();
-      await prefs.setInt('adsWatchedCount', count + 1);
-    }
+    // GÜNCELLEME: Hem Premium hem ücretsiz için limit sayacı artacak.
+    final prefs = await SharedPreferences.getInstance();
+    final count = await getAdsWatchedToday();
+    await prefs.setInt('adsWatchedCount', count + 1);
     
     quote = await quoteService.getRandomQuote(language: settings.appLanguage, forceRefresh: true);
+    
+    if (!_seenQuotes.any((q) => q.text(settings.appLanguage) == quote.text(settings.appLanguage))) {
+      _seenQuotes.add(quote);
+    }
+    
     notifyListeners();
+  }
+
+  void cycleSeenQuotes() {
+    if (_seenQuotes.isNotEmpty) {
+      final random = math.Random();
+      final randomIndex = random.nextInt(_seenQuotes.length);
+      quote = _seenQuotes[randomIndex];
+      notifyListeners();
+    }
   }
 
   void updateSettingsTemporary(AppSettings newSettings) {
@@ -113,7 +132,6 @@ class AppState extends ChangeNotifier {
       language: settings.appLanguage,
     );
     
-    // Fixed: Passing the entire quote list correctly to the updated NotificationService
     await notificationService.scheduleBarNotifications(
       settings: settings,
       allQuotes: allQuotesList.isEmpty ? [quote] : allQuotesList,
@@ -217,7 +235,6 @@ class AppState extends ChangeNotifier {
   Future<void> handleAppResumed(BuildContext context) async {
     _lastPopupShownAt ??= await storageService.loadLastPopupShownAt();
 
-    // 1. DATE CHECK: Refresh quote if the day has changed while app was in background
     final prefs = await SharedPreferences.getInstance();
     final savedDate = prefs.getString('dailyQuoteDate');
     final now = DateTime.now();
@@ -227,20 +244,30 @@ class AppState extends ChangeNotifier {
       await refreshQuote(force: false); 
     }
 
-    // 2. Reschedule Notifications
     unawaited(() async {
       if (settings.barNotificationsEnabled) {
         await rescheduleBarNotifications();
       }
     }());
 
-    // 3. Evaluate Popup Rules
     if (!context.mounted) return;
     await _maybeShowPopup(context);
   }
 
   Future<void> refreshQuote({bool force = false}) async {
     quote = await quoteService.getRandomQuote(language: settings.appLanguage, forceRefresh: force);
+    
+    // BÜYÜK DÜZELTME (BUG FIX): Uygulama reklamdan uyandığında tarihe sahip olsun ki, 
+    // handleAppResumed fonksiyonu sözü günün sözüne SIFIRLAMASIN.
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    final todayStr = '${now.year}-${now.month}-${now.day}';
+    await prefs.setString('dailyQuoteDate', todayStr);
+
+    if (!_seenQuotes.any((q) => q.text(settings.appLanguage) == quote.text(settings.appLanguage))) {
+      _seenQuotes.add(quote);
+    }
+    
     notifyListeners();
   }
 }

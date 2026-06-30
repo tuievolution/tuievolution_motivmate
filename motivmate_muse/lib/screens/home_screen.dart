@@ -49,61 +49,77 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // YENİLEME BUTONU (SHUFFLE) - Limit, Premiumlar dahil edildi.
   Future<void> _changeImageAd(BuildContext scaffoldCtx, AppState appState) async {
-    final canWatch = await appState.canWatchAd();
+    final canGetNewQuote = await appState.canWatchAd(); // Limit 3
     if (!scaffoldCtx.mounted) return;
 
-    if (canWatch) {
-      ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
-        const SnackBar(content: Text('Reklam yükleniyor...'), duration: Duration(seconds: 1)),
-      );
+    if (canGetNewQuote) {
+      if (appState.billingService.isPremium) {
+        // Premium Kullanıcı: Reklamsız yepyeni söz getir (ama limitinden düşecek)
+        await appState.incrementAdWatchAndRefreshQuote();
+        if (mounted) setState(() {});
+      } else {
+        // Ücretsiz Kullanıcı: Yeni söz için reklam izle (limitinden düşecek)
+        ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
+          const SnackBar(content: Text('Reklam yükleniyor...'), duration: Duration(seconds: 1)),
+        );
 
-      ads.RewardedAd.load(
-        adUnitId: 'ca-app-pub-3940256099942544/5224354917',
-        request: const ads.AdRequest(),
-        rewardedAdLoadCallback: ads.RewardedAdLoadCallback(
-          onAdLoaded: (ad) {
-            bool isRewardEarned = false;
+        ads.RewardedAd.load(
+          adUnitId: 'ca-app-pub-3940256099942544/5224354917',
+          request: const ads.AdRequest(),
+          rewardedAdLoadCallback: ads.RewardedAdLoadCallback(
+            onAdLoaded: (ad) {
+              bool isRewardEarned = false;
 
-            ad.fullScreenContentCallback = ads.FullScreenContentCallback(
-              onAdDismissedFullScreenContent: (ad) async {
-                ad.dispose();
-                if (isRewardEarned) {
-                  // GÜNCELLEME: setState ile UI'ı manuel olarak yenilemeye ZORLUYORUZ.
-                  await appState.incrementAdWatchAndRefreshQuote();
-                  if (mounted) setState(() {}); 
-                }
-              },
-              onAdFailedToShowFullScreenContent: (ad, error) {
-                ad.dispose();
-              },
-            );
+              ad.fullScreenContentCallback = ads.FullScreenContentCallback(
+                onAdDismissedFullScreenContent: (ad) async {
+                  ad.dispose();
+                  if (isRewardEarned) {
+                    await appState.incrementAdWatchAndRefreshQuote();
+                    if (mounted) setState(() {}); 
+                  }
+                },
+                onAdFailedToShowFullScreenContent: (ad, error) {
+                  ad.dispose();
+                },
+              );
 
-            ad.show(onUserEarnedReward: (ad, reward) {
-              isRewardEarned = true;
-            });
-          },
-          onAdFailedToLoad: (error) {
-            if (!scaffoldCtx.mounted) return;
-            ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
-              const SnackBar(content: Text('Reklam bağlantı hatası. İnternetinizi kontrol edin.')),
-            );
-          },
-        ),
-      );
+              ad.show(onUserEarnedReward: (ad, reward) {
+                isRewardEarned = true;
+              });
+            },
+            onAdFailedToLoad: (error) {
+              if (!scaffoldCtx.mounted) return;
+              ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
+                const SnackBar(content: Text('Reklam bağlantı hatası. İnternetinizi kontrol edin.')),
+              );
+            },
+          ),
+        );
+      }
     } else {
+      // 3 HAK BİTİNCE (Hem Premium Hem Ücretsiz için):
+      // Reklamsız, o gün indirilmiş görülen sözler (seenQuotes) içinde dolaştır.
+      appState.cycleSeenQuotes();
+      if (mounted) setState(() {});
+      
+      ScaffoldMessenger.of(scaffoldCtx).clearSnackBars();
       ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
         SnackBar(
           content: Text(
             appState.settings.appLanguage == 'en' 
-                ? 'Daily extra quote limit reached (3/3).' 
-                : 'Günlük ekstra alıntı değiştirme hakkınız doldu (3/3).'
+                ? 'Daily limit reached. Cycling seen quotes.' 
+                : 'Günlük limit doldu. Daha önce görülen sözler gösteriliyor.'
           ),
+          duration: const Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
   }
 
+  // İNDİRME BUTONU (DOWNLOAD) - Limitsiz ama ücretsizler için HER SEFERİNDE reklamlı.
   Future<void> _saveCurrentView(BuildContext scaffoldCtx, AppState appState, ThemePreset preset) async {
     final bool isPremium = appState.billingService.isPremium;
 
@@ -123,6 +139,11 @@ class _HomeScreenState extends State<HomeScreen> {
     if (isPremium) {
       await executeCapture();
     } else {
+      // ÜCRETSİZ İNDİRME REKLAMI (Limit Yok)
+      ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
+        const SnackBar(content: Text('İndirme için reklam yükleniyor...'), duration: Duration(seconds: 1)),
+      );
+      
       ads.RewardedAd.load(
         adUnitId: 'ca-app-pub-3940256099942544/5224354917',
         request: const ads.AdRequest(),
@@ -133,6 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ad.fullScreenContentCallback = ads.FullScreenContentCallback(
               onAdDismissedFullScreenContent: (ad) {
                 ad.dispose();
+                // BURASI ÇOK ÖNEMLİ: Sadece ekran resmi al, sözü asla değiştirme/sıfırlama
                 if (isRewardEarned) executeCapture();
               },
               onAdFailedToShowFullScreenContent: (ad, error) {
@@ -146,7 +168,7 @@ class _HomeScreenState extends State<HomeScreen> {
             });
           },
           onAdFailedToLoad: (error) {
-            executeCapture();
+            executeCapture(); // Hata çıkarsa ceza verme, indir
           },
         ),
       );
@@ -194,7 +216,6 @@ class _HomeScreenState extends State<HomeScreen> {
       orElse: () => themePresets.first,
     );
 
-    // GÜNCELLEME: Ana Ekran her zaman üst Status Bar'ı hesaba katmalı.
     return Scaffold(
       drawer: const SettingsDrawer(),
       body: Builder(
@@ -255,7 +276,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           Positioned.fill(child: blurredBackground),
 
                           // ── MotivMood Header ──────────────────────────────────
-                          // GÜNCELLEME: Yukarıdan boşluk bırakarak Status Bar'ı koruyoruz.
                           Positioned(
                             top: MediaQuery.of(context).padding.top + 20,
                             left: 0,
@@ -339,7 +359,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   Positioned(
                     left: 0,
                     right: 0,
-                    // GÜNCELLEME: SafeArea insets kullanarak alt çentikten (home indicator) korunuyoruz
                     bottom: MediaQuery.of(context).padding.bottom + 24,
                     child: Center(
                       child: Container(
@@ -373,7 +392,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                       top: Radius.circular(18),
                                     ),
                                   ),
-                                  // GÜNCELLEME: Ekranın %85'ini kaplasın, Status barı yutmasın!
                                   builder: (_) => SizedBox(
                                     height: MediaQuery.of(context).size.height * 0.85,
                                     child: EditingDrawer(
