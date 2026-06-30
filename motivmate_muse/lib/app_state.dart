@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -27,8 +26,12 @@ class AppState extends ChangeNotifier {
   DateTime? _lastPopupShownAt;
   bool _popupInFlight = false;
 
-  // Görülen sözlerin listesi (Reklamsız geçiş için)
+  // Gün Boyunca Kalıcı Tutulacak Görülen Sözler Listesi
   final List<Quote> _seenQuotes = [];
+  
+  // İkon Değişimi İçin Senkronize Sayaç Takibi
+  int _todayAdCount = 0;
+  bool get isLimitReached => _todayAdCount >= 3;
 
   AppState({
     required this.storageService,
@@ -40,12 +43,74 @@ class AppState extends ChangeNotifier {
   })  : settings = initialSettings,
         quote = initialQuote,
         isQuoteVisible = true {
-    // Uygulama ilk açıldığındaki günün sözünü görülenlere ekliyoruz.
-    _seenQuotes.add(quote);
+    // İlk açılışta hafızadaki kalıcı verileri yükle
+    _loadPersistentSeenQuotes();
   }
 
   Future<void> initialize() async {
     _lastPopupShownAt = await storageService.loadLastPopupShownAt();
+    _todayAdCount = await getAdsWatchedToday();
+    await _loadPersistentSeenQuotes();
+  }
+
+  // Kalıcı Hafızadan Görülen Sözleri Yükleme Fonksiyonu
+  Future<void> _loadPersistentSeenQuotes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    final todayStr = '${now.year}-${now.month}-${now.day}';
+    final savedDate = prefs.getString('seenQuotesDate');
+    
+    _seenQuotes.clear();
+    if (savedDate == todayStr) {
+      final encodedList = prefs.getStringList('seenQuotesList') ?? [];
+      for (var item in encodedList) {
+        final parts = item.split('|||');
+        if (parts.length >= 5) {
+          _seenQuotes.add(Quote(
+            textTr: parts[0],
+            textEn: parts[1],
+            authorTr: parts[2],
+            authorEn: parts[3],
+            imageAsset: parts[4], // DÜZELTİLDİ: imagePath yerine imageAsset
+          ));
+        } else if (parts.length >= 4) {
+          // Eski format yedek uyumluluğu
+          _seenQuotes.add(Quote(
+            textTr: parts[0],
+            textEn: parts[1],
+            authorTr: parts[2],
+            authorEn: parts[2],
+            imageAsset: parts[3], // DÜZELTİLDİ
+          ));
+        }
+      }
+    } else {
+      await prefs.setString('seenQuotesDate', todayStr);
+      await prefs.setStringList('seenQuotesList', []);
+    }
+    _addCurrentQuoteToSeen();
+  }
+
+  // Görülen Sözleri Cihaza Kalıcı Kaydetme Fonksiyonu
+  Future<void> _savePersistentSeenQuotes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    final todayStr = '${now.year}-${now.month}-${now.day}';
+    
+    List<String> encodedList = _seenQuotes.map((q) {
+      // DÜZELTİLDİ: Veritabanına kaydederken yolların tam listesi
+      return '${q.textTr}|||${q.textEn}|||${q.authorTr}|||${q.authorEn}|||${q.imagePath}';
+    }).toList();
+    
+    await prefs.setString('seenQuotesDate', todayStr);
+    await prefs.setStringList('seenQuotesList', encodedList);
+  }
+
+  void _addCurrentQuoteToSeen() {
+    if (!_seenQuotes.any((q) => q.textTr == quote.textTr)) {
+      _seenQuotes.add(quote);
+      _savePersistentSeenQuotes();
+    }
   }
 
   void toggleOriginalView() {
@@ -72,9 +137,12 @@ class AppState extends ChangeNotifier {
     if (savedDate != todayStr) {
       await prefs.setString('adWatchDate', todayStr);
       await prefs.setInt('adsWatchedCount', 0);
+      _todayAdCount = 0;
+      notifyListeners();
       return 0;
     }
-    return prefs.getInt('adsWatchedCount') ?? 0;
+    _todayAdCount = prefs.getInt('adsWatchedCount') ?? 0;
+    return _todayAdCount;
   }
 
   Future<bool> canWatchAd() async {
@@ -83,25 +151,25 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> incrementAdWatchAndRefreshQuote() async {
-    // GÜNCELLEME: Hem Premium hem ücretsiz için limit sayacı artacak.
     final prefs = await SharedPreferences.getInstance();
     final count = await getAdsWatchedToday();
-    await prefs.setInt('adsWatchedCount', count + 1);
+    _todayAdCount = count + 1;
+    await prefs.setInt('adsWatchedCount', _todayAdCount);
     
     quote = await quoteService.getRandomQuote(language: settings.appLanguage, forceRefresh: true);
-    
-    if (!_seenQuotes.any((q) => q.text(settings.appLanguage) == quote.text(settings.appLanguage))) {
-      _seenQuotes.add(quote);
-    }
-    
+    _addCurrentQuoteToSeen();
     notifyListeners();
   }
 
   void cycleSeenQuotes() {
     if (_seenQuotes.isNotEmpty) {
-      final random = math.Random();
-      final randomIndex = random.nextInt(_seenQuotes.length);
-      quote = _seenQuotes[randomIndex];
+      // Bulunduğumuz aktif alıntının sıradaki kalıcı dizin indeksini öğreniyoruz
+      int currentIndex = _seenQuotes.indexWhere((q) => q.textTr == quote.textTr);
+      
+      // Eğer listede yoksa veya ilk defa dönüyorsa 0'dan başla, varsa bir sonraki sıraya geç
+      int nextIndex = (currentIndex + 1) % _seenQuotes.length;
+      
+      quote = _seenQuotes[nextIndex];
       notifyListeners();
     }
   }
@@ -245,29 +313,26 @@ class AppState extends ChangeNotifier {
     }
 
     unawaited(() async {
+      // DÜZELTİLDİ: bodyNotificationsEnabled yerine barNotificationsEnabled kullanıldı
       if (settings.barNotificationsEnabled) {
         await rescheduleBarNotifications();
       }
     }());
 
-    if (!context.mounted) return;
-    await _maybeShowPopup(context);
+    if (context.mounted) {
+      await _maybeShowPopup(context);
+    }
   }
 
   Future<void> refreshQuote({bool force = false}) async {
     quote = await quoteService.getRandomQuote(language: settings.appLanguage, forceRefresh: force);
     
-    // BÜYÜK DÜZELTME (BUG FIX): Uygulama reklamdan uyandığında tarihe sahip olsun ki, 
-    // handleAppResumed fonksiyonu sözü günün sözüne SIFIRLAMASIN.
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now();
     final todayStr = '${now.year}-${now.month}-${now.day}';
     await prefs.setString('dailyQuoteDate', todayStr);
 
-    if (!_seenQuotes.any((q) => q.text(settings.appLanguage) == quote.text(settings.appLanguage))) {
-      _seenQuotes.add(quote);
-    }
-    
+    _addCurrentQuoteToSeen();
     notifyListeners();
   }
 }

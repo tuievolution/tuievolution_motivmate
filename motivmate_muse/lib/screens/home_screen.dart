@@ -1,3 +1,4 @@
+import 'dart:async'; // Zamanlayıcı için eklendi
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -49,18 +50,60 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // YENİLEME BUTONU (SHUFFLE) - Limit, Premiumlar dahil edildi.
+  // ── YENİ: Üstten Kayan Özel Bildirim Barı (Overlay) ──
+  void _showTopWarning(BuildContext context, String message) {
+    final overlay = Overlay.of(context);
+    late OverlayEntry overlayEntry;
+    
+    overlayEntry = OverlayEntry(
+      builder: (ctx) => Positioned(
+        top: MediaQuery.of(ctx).padding.top + 12,
+        left: 16,
+        right: 16,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.9),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.6), width: 1.5),
+              boxShadow: const [
+                BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 4))
+              ],
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.repeat_rounded, color: Colors.orangeAccent, size: 22),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(overlayEntry);
+    Timer(const Duration(seconds: 3), () {
+      overlayEntry.remove();
+    });
+  }
+
   Future<void> _changeImageAd(BuildContext scaffoldCtx, AppState appState) async {
-    final canGetNewQuote = await appState.canWatchAd(); // Limit 3
+    final canGetNewQuote = await appState.canWatchAd(); 
     if (!scaffoldCtx.mounted) return;
 
     if (canGetNewQuote) {
       if (appState.billingService.isPremium) {
-        // Premium Kullanıcı: Reklamsız yepyeni söz getir (ama limitinden düşecek)
         await appState.incrementAdWatchAndRefreshQuote();
         if (mounted) setState(() {});
       } else {
-        // Ücretsiz Kullanıcı: Yeni söz için reklam izle (limitinden düşecek)
         ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
           const SnackBar(content: Text('Reklam yükleniyor...'), duration: Duration(seconds: 1)),
         );
@@ -99,27 +142,20 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     } else {
-      // 3 HAK BİTİNCE (Hem Premium Hem Ücretsiz için):
-      // Reklamsız, o gün indirilmiş görülen sözler (seenQuotes) içinde dolaştır.
+      // Limit Doldu: Reklamsız hafızadaki sözler arası geçiş yap
       appState.cycleSeenQuotes();
       if (mounted) setState(() {});
       
-      ScaffoldMessenger.of(scaffoldCtx).clearSnackBars();
-      ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
-        SnackBar(
-          content: Text(
-            appState.settings.appLanguage == 'en' 
-                ? 'Daily limit reached. Cycling seen quotes.' 
-                : 'Günlük limit doldu. Daha önce görülen sözler gösteriliyor.'
-          ),
-          duration: const Duration(seconds: 1),
-          behavior: SnackBarBehavior.floating,
-        ),
+      // GÜNCELLEME: SnackBar yerine üstten açılan fonksiyon çağrıldı
+      _showTopWarning(
+        scaffoldCtx,
+        appState.settings.appLanguage == 'en' 
+            ? 'Daily limit reached. Cycling today\'s quotes.' 
+            : 'Günlük limit doldu. Bugün gelen alıntılar arasında dönülüyor.'
       );
     }
   }
 
-  // İNDİRME BUTONU (DOWNLOAD) - Limitsiz ama ücretsizler için HER SEFERİNDE reklamlı.
   Future<void> _saveCurrentView(BuildContext scaffoldCtx, AppState appState, ThemePreset preset) async {
     final bool isPremium = appState.billingService.isPremium;
 
@@ -139,7 +175,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (isPremium) {
       await executeCapture();
     } else {
-      // ÜCRETSİZ İNDİRME REKLAMI (Limit Yok)
       ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
         const SnackBar(content: Text('İndirme için reklam yükleniyor...'), duration: Duration(seconds: 1)),
       );
@@ -154,7 +189,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ad.fullScreenContentCallback = ads.FullScreenContentCallback(
               onAdDismissedFullScreenContent: (ad) {
                 ad.dispose();
-                // BURASI ÇOK ÖNEMLİ: Sadece ekran resmi al, sözü asla değiştirme/sıfırlama
                 if (isRewardEarned) executeCapture();
               },
               onAdFailedToShowFullScreenContent: (ad, error) {
@@ -168,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
             });
           },
           onAdFailedToLoad: (error) {
-            executeCapture(); // Hata çıkarsa ceza verme, indir
+            executeCapture(); 
           },
         ),
       );
@@ -282,21 +316,24 @@ class _HomeScreenState extends State<HomeScreen> {
                             right: 0,
                             child: Column(
                               children: [
-                                Text(
-                                  'MotivMood',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 3.0,
-                                    shadows: [
-                                      Shadow(
-                                        color: Colors.black.withValues(alpha: 0.6),
-                                        blurRadius: 16,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ],
+                                InkWell(
+                                  onTap: () => appState.toggleOriginalView(),
+                                  child: Text(
+                                    'MotivMood',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 3.0,
+                                      shadows: [
+                                        Shadow(
+                                          color: Colors.black.withValues(alpha: 0.6),
+                                          blurRadius: 16,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -313,43 +350,25 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
 
                           // ── Quote Card ────────────────────────────────────────
-                          if (showCard) ...[
-                            (() {
-                              final quoteText = appState.quote.text(appState.settings.appLanguage);
-                              final quoteAuthor = appState.quote.author(appState.settings.appLanguage);
-
-                              double effectiveFontSize = appState.settings.fontSize;
-                              double effectiveTopN = appState.settings.cardTopN;
-
-                              final textLen = quoteText.length;
-                              if (textLen > 100) {
-                                final shrinkFactor = ((textLen - 100) / 160.0).clamp(0.0, 0.40);
-                                effectiveFontSize = (effectiveFontSize * (1.0 - shrinkFactor)).clamp(10.0, 28.0);
-
-                                final shiftFactor = shrinkFactor * 0.18;
-                                effectiveTopN = (effectiveTopN - shiftFactor).clamp(0.04, 0.95);
-                              }
-
-                              return Positioned(
-                                left: appState.settings.cardLeftN.clamp(0.0, 1.0) * constraints.maxWidth,
-                                top:  effectiveTopN.clamp(0.0, 1.0)  * constraints.maxHeight,
-                                width:  appState.settings.cardWidthN.clamp(0.01, 1.0) * constraints.maxWidth,
-                                child: QuoteCard(
-                                  text: quoteText,
-                                  author: quoteAuthor,
-                                  cardBackgroundColor: Color(appState.settings.cardBackgroundColorValue),
-                                  quoteTextColor: Color(appState.settings.textColorValue),
-                                  effectColor: Color(appState.settings.effectColorValue),
-                                  opacity: appState.settings.cardOpacity,
-                                  fontSize: effectiveFontSize,
-                                  fontFamily: appState.settings.fontFamily,
-                                  textEffectId: appState.settings.textEffectId,
-                                  showBackground: showCardBg,
-                                  fillContainer: true,
-                                ),
-                              );
-                            }()),
-                          ],
+                          if (showCard) 
+                            Positioned(
+                              left: appState.settings.cardLeftN.clamp(0.0, 1.0) * constraints.maxWidth,
+                              top:  appState.settings.cardTopN.clamp(0.0, 1.0) * constraints.maxHeight,
+                              width:  appState.settings.cardWidthN.clamp(0.01, 1.0) * constraints.maxWidth,
+                              child: QuoteCard(
+                                text: appState.quote.text(appState.settings.appLanguage),
+                                author: appState.quote.author(appState.settings.appLanguage),
+                                cardBackgroundColor: Color(appState.settings.cardBackgroundColorValue),
+                                quoteTextColor: Color(appState.settings.textColorValue),
+                                effectColor: Color(appState.settings.effectColorValue),
+                                opacity: appState.settings.cardOpacity,
+                                fontSize: appState.settings.fontSize,
+                                fontFamily: appState.settings.fontFamily,
+                                textEffectId: appState.settings.textEffectId,
+                                showBackground: showCardBg,
+                                fillContainer: true,
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -416,8 +435,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               onTap: () => _saveCurrentView(scaffoldContext, appState, preset),
                             ),
                             const SizedBox(width: 10),
+                            // GÜNCELLEME: Limit dolunca ikon otomatik olarak tekrar eden simgeye dönüyor!
                             _ActionButton(
-                              icon: Icons.shuffle,
+                              icon: appState.isLimitReached ? Icons.repeat_rounded : Icons.shuffle,
                               onTap: () => _changeImageAd(scaffoldContext, appState),
                             ),
                             const SizedBox(width: 10),

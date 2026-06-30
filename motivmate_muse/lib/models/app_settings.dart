@@ -91,7 +91,7 @@ class AppSettings {
       showCard: true,
       showCardBackground: true,
       backgroundOverlayOpacity: 0.35,
-      cardOpacity: 0.92,
+      cardOpacity: 0.6,
       cardLeftN: 0.06,  // Perfectly centered horizontally: (1.0 - 0.88)/2
       cardTopN: 0.32,   // Perfectly centered vertically: (1.0 - 0.36)/2
       cardWidthN: 0.88, // 88% of screen width

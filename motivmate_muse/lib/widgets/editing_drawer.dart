@@ -238,21 +238,38 @@ class _EditingDrawerState extends State<EditingDrawer> {
           value: draft.showCardBackground,
           onChanged: (v) {
             _updateDraft(draft.copyWith(showCardBackground: v));
-            widget.appState.setQuoteVisibility(true);
+            widget.appState.setQuoteVisibility(v); // Kart durumunu anında yansıt
           },
         ),
         const SizedBox(height: 6),
 
-        _colorExpansionTile(
-          cs: cs,
-          title: _l('Kart Arka Plan Rengi', 'Card Background Color'),
-          hexValue: draft.cardBackgroundColorValue,
-          pickerColor: Color(draft.cardBackgroundColorValue),
-          enableAlpha: true,
-          onColorChanged: (c) =>
-              _updateDraft(draft.copyWith(cardBackgroundColorValue: c.toARGB32())),
-        ),
+        // SADECE KART AÇIKKEN GÖSTERİLECEK AYARLAR
+        if (draft.showCardBackground) ...[
+          _colorExpansionTile(
+            cs: cs,
+            title: _l('Kart Arka Plan Rengi', 'Card Background Color'),
+            hexValue: draft.cardBackgroundColorValue,
+            pickerColor: Color(draft.cardBackgroundColorValue),
+            enableAlpha: true,
+            onColorChanged: (c) =>
+                _updateDraft(draft.copyWith(cardBackgroundColorValue: c.toARGB32())),
+          ),
 
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(_l('Kart opaklığı', 'Card Opacity')),
+            subtitle: Text('${(draft.cardOpacity * 100).toStringAsFixed(0)}%'),
+          ),
+          Slider(
+            value: draft.cardOpacity,
+            min: 0.2,
+            max: 1,
+            divisions: 60,
+            onChanged: (v) => _updateDraft(draft.copyWith(cardOpacity: v)),
+          ),
+        ],
+
+        // Arka plan opaklığı (Fotoğraf karartması) her zaman kalır
         ListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(_l('Arka plan opaklığı', 'Overlay Opacity')),
@@ -264,19 +281,6 @@ class _EditingDrawerState extends State<EditingDrawer> {
           max: 1,
           divisions: 100,
           onChanged: (v) => _updateDraft(draft.copyWith(backgroundOverlayOpacity: v)),
-        ),
-
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(_l('Kart opaklığı', 'Card Opacity')),
-          subtitle: Text('${(draft.cardOpacity * 100).toStringAsFixed(0)}%'),
-        ),
-        Slider(
-          value: draft.cardOpacity,
-          min: 0.2,
-          max: 1,
-          divisions: 60,
-          onChanged: (v) => _updateDraft(draft.copyWith(cardOpacity: v)),
         ),
         const SizedBox(height: 12),
 
@@ -549,64 +553,12 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
     final cardBg = Color(_draft.cardBackgroundColorValue);
     final effectColor = Color(_draft.effectColorValue);
 
-    // Slider için hata önleyici güvenlik hesaplaması
-    double sliderMax = _maxAllowedFontSize > 10.0 ? _maxAllowedFontSize : 10.1;
-    int divisions = (sliderMax - 10.0).round();
-    if (divisions < 1) divisions = 1;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Text(
-            _l('Yazı Boyutu', 'Font Size'),
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
-        ),
-        Row(
-          children: [
-            const SizedBox(width: 8),
-            const Icon(Icons.text_fields, size: 16),
-            Expanded(
-              child: Slider(
-                value: _draft.fontSize.clamp(10.0, sliderMax), 
-                min: 10.0,
-                // Maksimum sınır doğrudan dinamik sınıra kilitlendi!
-                max: sliderMax, 
-                divisions: divisions,
-                label: '${_draft.fontSize.round()}pt',
-                onChanged: (v) {
-                  _notify(_draft.copyWith(fontSize: v));
-                },
-              ),
-            ),
-            SizedBox(
-              width: 36,
-              child: Text('${_draft.fontSize.round()}pt',
-                  style: const TextStyle(fontSize: 12)),
-            ),
-          ],
-        ),
-
+        // 1. YAZI TİPİ (FONT FAMILY) - En üste taşındı
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
-          child: Text(
-            _l('Yazı Rengi', 'Text Color'),
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _buildPalette(textColor, isText: true),
-          ),
-        ),
-
-        Padding(
-          padding: const EdgeInsets.fromLTRB(8, 12, 8, 6),
           child: Text(
             _l('Yazı Tipi', 'Font Family'),
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
@@ -648,16 +600,40 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
               if (v == null) return;
               setState(() {
                 _draft = _draft.copyWith(fontFamily: v);
-                // Font değiştiğinde kaydırıcı sınırlarını (slider) yeni fonta göre ayarla
                 _recalculateMaxFontSize(notify: true);
               });
             },
           ),
         ),
-        
-        // ── METİN EFEKTİ VE PARLAMA BÖLÜMÜ BAŞLANGICI ──
-        const SizedBox(height: 16),
-        const Divider(height: 30),
+
+        const SizedBox(height: 10),
+
+        // 2. YAZI RENGİ - Açılabilir Liste (ExpansionTile) Yapıldı
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: Text(
+              _l('Yazı Rengi', 'Text Color'),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _buildPalette(textColor, isText: true),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 10),
+        const Divider(height: 20),
+
+        // 3. METİN EFEKTİ SEÇİMİ
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: Text(
@@ -677,9 +653,11 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
             ),
             items: [
               DropdownMenuItem(value: 'none', child: Text(_l('Efekt Yok', 'No Effect'))),
-              DropdownMenuItem(value: 'shadow', child: Text(_l('Gölge', 'Shadow'))),
+              DropdownMenuItem(value: 'shadow_soft', child: Text(_l('Yumuşak Gölge', 'Soft Shadow'))),
+              DropdownMenuItem(value: 'shadow_hard', child: Text(_l('Keskin Gölge', 'Hard Shadow'))),
               DropdownMenuItem(value: 'outline', child: Text(_l('Dış Çizgi (Outline)', 'Outline'))),
-              DropdownMenuItem(value: 'neon', child: Text(_l('Neon Parlama', 'Neon Glow'))),
+              DropdownMenuItem(value: 'neon', child: Text(_l('Hafif Neon Parlama', 'Soft Neon Glow'))),
+              DropdownMenuItem(value: 'neon_intense', child: Text(_l('Yoğun Neon', 'Intense Neon'))),
               DropdownMenuItem(value: 'cloud', child: Text(_l('Bulut (Geniş Işık)', 'Cloud Glow'))),
               DropdownMenuItem(value: 'retro', child: Text(_l('Retro / 3D', 'Retro 3D'))),
               DropdownMenuItem(value: 'emboss', child: Text(_l('Kabarık (Emboss)', 'Emboss'))),
@@ -691,8 +669,38 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
           ),
         ),
 
-        if (_draft.textEffectId != 'none') ...[
+        // 4. EFEKT ÖZELLEŞTİRMELERİ (Emboss değilse ve Efekt Yok değilse gösterilir)
+        if (_draft.textEffectId != 'none' && _draft.textEffectId != 'emboss') ...[
+          const SizedBox(height: 10),
+          
+          // Parlama Rengi - Açılabilir Liste (ExpansionTile) Yapıldı
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: ExpansionTile(
+              // Key sayesinde efekt her değiştiğinde Drawer otomatik olarak açık hale sıfırlanır
+              key: ValueKey('glow_color_${_draft.textEffectId}'),
+              initiallyExpanded: true, // Varsayılan olarak hep açık gelir
+              tilePadding: EdgeInsets.zero,
+              title: Text(
+                _l('Parlama Rengi', 'Glow Color'),
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _buildPalette(effectColor.withValues(alpha: 1.0), isText: false),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           const SizedBox(height: 12),
+          
+          // Işık Şiddeti - Renk Seçiminin Altına Taşındı
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
@@ -716,26 +724,45 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
-            child: Text(
-              _l('Parlama Rengi', 'Glow Color'),
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _buildPalette(effectColor.withValues(alpha: 1.0), isText: false),
-            ),
-          ),
         ],
-        // ── BİTİŞ ──
 
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
+        const Divider(height: 30),
 
+        // 5. YAZI BOYUTU (PUNTO) - Kart yakını takip için Önizlemenin hemen üstüne taşındı
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Text(
+            _l('Yazı Boyutu', 'Font Size'),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
+        Row(
+          children: [
+            const SizedBox(width: 8),
+            const Icon(Icons.text_fields, size: 16),
+            Expanded(
+              child: Slider(
+                value: _draft.fontSize.clamp(10.0, _maxAllowedFontSize > 10.0 ? _maxAllowedFontSize : 10.1), 
+                min: 10.0,
+                max: _maxAllowedFontSize > 10.0 ? _maxAllowedFontSize : 10.1, 
+                divisions: (_maxAllowedFontSize - 10.0).round() < 1 ? 1 : (_maxAllowedFontSize - 10.0).round(),
+                label: '${_draft.fontSize.round()}pt',
+                onChanged: (v) {
+                  _notify(_draft.copyWith(fontSize: v));
+                },
+              ),
+            ),
+            SizedBox(
+              width: 36,
+              child: Text('${_draft.fontSize.round()}pt', style: const TextStyle(fontSize: 12)),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 12),
+
+        // 6. YAZI GÖRÜNÜMÜ (PREVIEW)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: Text(
