@@ -161,7 +161,7 @@ class _EditingDrawerState extends State<EditingDrawer> {
     final filters = <String, Map<String, String>>{
       'none':    {'tr': 'Varsayılan',   'en': 'Default'},
       'sepia':   {'tr': 'Sepya',        'en': 'Sepia'},
-      'mono':    {'tr': 'Siyah Beyaz',  'en': 'Black & White'},
+      'mono':    {'tr': 'Siyah - Beyaz',  'en': 'Black & White'},
       'vintage': {'tr': 'Vintage',      'en': 'Vintage'},
       'warm':    {'tr': 'Sıcak',        'en': 'Warm'},
       'cool':    {'tr': 'Soğuk',        'en': 'Cool'},
@@ -315,8 +315,10 @@ class _EditingDrawerState extends State<EditingDrawer> {
     return SingleChildScrollView(
       child: TextSettingsEditor(
         initialSettings: draft,
-        sampleText: quote.text(lang), // SADECE GÖRÜNEN DİL GÖNDERİLİYOR
+        sampleText: quote.text(lang),
         sampleAuthor: quote.author(lang),
+        textTr: quote.textTr, 
+        textEn: quote.textEn, 
         language: lang,
         onChanged: (updated) {
           _updateDraft(updated);
@@ -396,6 +398,8 @@ class TextSettingsEditor extends StatefulWidget {
   final AppSettings initialSettings;
   final String sampleText;
   final String sampleAuthor;
+  final String textTr;
+  final String textEn;
   final String language;
   final void Function(AppSettings updated) onChanged;
 
@@ -404,6 +408,8 @@ class TextSettingsEditor extends StatefulWidget {
     required this.initialSettings,
     required this.sampleText,
     required this.sampleAuthor,
+    required this.textTr,
+    required this.textEn,
     required this.language,
     required this.onChanged,
   });
@@ -416,7 +422,9 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
   late AppSettings _draft;
   Color? _customTextColor;
   Color? _customEffectColor;
-  bool _showSizeWarning = false;
+  
+  // O dile özgü hesaplanan maksimum dinamik punto
+  double _maxAllowedFontSize = 52.0;
 
   @override
   void initState() {
@@ -432,6 +440,9 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
     if (!_presetColors.any((c) => c.toARGB32() == effectC.toARGB32())) {
       _customEffectColor = effectC;
     }
+    
+    // Açılışta maksimum boyutu hesapla
+    _recalculateMaxFontSize(notify: false);
   }
 
   @override
@@ -439,6 +450,7 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
     super.didUpdateWidget(oldWidget);
     if (widget.initialSettings != oldWidget.initialSettings) {
       _draft = widget.initialSettings;
+      _recalculateMaxFontSize(notify: false);
     }
   }
 
@@ -449,16 +461,27 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
     widget.onChanged(next);
   }
 
-  // GÜNCELLEME: Artık sadece geçerli dildeki metni test ediyoruz.
-  double _calculateMaxAllowedFontSize() {
-    double maxFit = 48.0; 
-    for (double fs = 10.0; fs <= 48.0; fs += 1.0) {
+  // GÜNCELLEME: Limit aşıldığında slider'ın ileri gitmesini tamamen engeller.
+  void _recalculateMaxFontSize({required bool notify}) {
+    double maxFit = 52.0; 
+    for (double fs = 10.0; fs <= 52.0; fs += 1.0) {
+      // SADECE GÖRÜNEN DİL test edilir. Böylece kısa dil uzun dil yüzünden cezalandırılmaz.
       if (!_testTextFits(fs, widget.sampleText)) {
         maxFit = fs - 1.0;
         break;
       }
     }
-    return maxFit.clamp(10.0, 48.0);
+    
+    _maxAllowedFontSize = maxFit.clamp(10.0, 52.0);
+
+    // Eğer mevcut font boyutu, yeni seçilen fontta taşmaya neden oluyorsa otomatik küçült
+    if (_draft.fontSize > _maxAllowedFontSize) {
+      _draft = _draft.copyWith(fontSize: _maxAllowedFontSize);
+    }
+    
+    if (notify) {
+      widget.onChanged(_draft);
+    }
   }
 
   bool _testTextFits(double fontSize, String text) {
@@ -526,6 +549,11 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
     final cardBg = Color(_draft.cardBackgroundColorValue);
     final effectColor = Color(_draft.effectColorValue);
 
+    // Slider için hata önleyici güvenlik hesaplaması
+    double sliderMax = _maxAllowedFontSize > 10.0 ? _maxAllowedFontSize : 10.1;
+    int divisions = (sliderMax - 10.0).round();
+    if (divisions < 1) divisions = 1;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -542,20 +570,14 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
             const Icon(Icons.text_fields, size: 16),
             Expanded(
               child: Slider(
-                value: _draft.fontSize.clamp(10, 48), 
-                min: 10,
-                max: 48,
-                divisions: 38,
+                value: _draft.fontSize.clamp(10.0, sliderMax), 
+                min: 10.0,
+                // Maksimum sınır doğrudan dinamik sınıra kilitlendi!
+                max: sliderMax, 
+                divisions: divisions,
                 label: '${_draft.fontSize.round()}pt',
                 onChanged: (v) {
-                  final maxAllowed = _calculateMaxAllowedFontSize();
-                  if (v > maxAllowed) {
-                    _notify(_draft.copyWith(fontSize: maxAllowed));
-                    setState(() { _showSizeWarning = true; });
-                  } else {
-                    _notify(_draft.copyWith(fontSize: v));
-                    setState(() { _showSizeWarning = false; });
-                  }
+                  _notify(_draft.copyWith(fontSize: v));
                 },
               ),
             ),
@@ -566,19 +588,6 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
             ),
           ],
         ),
-        
-        if (_showSizeWarning)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-            child: Text(
-              _l(
-                'Metin çok uzun olduğu için maksimum boyuta sınırlandırıldı.',
-                'Text size restricted to fit the maximum card limits.',
-              ),
-              style: const TextStyle(color: Colors.orangeAccent, fontSize: 11, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-          ),
 
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
@@ -637,13 +646,11 @@ class _TextSettingsEditorState extends State<TextSettingsEditor> {
             }).toList(),
             onChanged: (v) {
               if (v == null) return;
-              _notify(_draft.copyWith(fontFamily: v));
-              
-              // Yazı tipi değiştiğinde yeni genişliğe göre boyutu sadece o anki dile göre kontrol et
-              final maxAllowed = _calculateMaxAllowedFontSize();
-              if (_draft.fontSize > maxAllowed) {
-                _notify(_draft.copyWith(fontSize: maxAllowed));
-              }
+              setState(() {
+                _draft = _draft.copyWith(fontFamily: v);
+                // Font değiştiğinde kaydırıcı sınırlarını (slider) yeni fonta göre ayarla
+                _recalculateMaxFontSize(notify: true);
+              });
             },
           ),
         ),
